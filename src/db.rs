@@ -1,0 +1,96 @@
+use serde_json::Value;
+use supabase_rs::SupabaseClient;
+use tracing::{debug, info, warn};
+
+use crate::{
+    config::Config,
+    error::{AppError, Result},
+    models::User,
+};
+
+#[derive(Clone)]
+pub struct DbClient {
+    client: SupabaseClient,
+}
+
+impl DbClient {
+    #[tracing::instrument(skip(config))]
+    pub fn new(config: &Config) -> Result<Self> {
+        let client = SupabaseClient::new(config.supabase_url.clone(), config.supabase_key.clone())
+            .map_err(|e| AppError::SupabaseBuilder(e.to_string()))?;
+        info!("Supabase client initialized.");
+        Ok(Self { client })
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn remove_user(&self, user_id: i64) -> Result<()> {
+        self.client
+            .delete("users", &user_id.to_string())
+            .await
+            .map_err(|e| AppError::SupabaseRequest(e.to_string()))?;
+
+        info!(%user_id, "User removed from database");
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self, user))]
+    pub async fn insert_user(&self, user: Value) -> Result<()> {
+        let inserted_id = self
+            .client
+            .insert("users", user)
+            .await
+            .map_err(|e| AppError::SupabaseRequest(e.to_string()))?;
+
+        info!(?inserted_id, "User inserted into database");
+        Ok(())
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub async fn get_users(&self) -> Result<Vec<User>> {
+        info!("Fetching all users from Supabase 'users' table...");
+        let raw_values = self
+            .client
+            .select("users")
+            .execute()
+            .await
+            .map_err(|e| AppError::SupabaseRequest(e.to_string()))?;
+
+        let raw_count = raw_values.len();
+        debug!(raw_count, "Received raw values from Supabase.");
+
+        let users: Vec<User> = raw_values
+            .into_iter()
+            .filter_map(
+                |value| match serde_json::from_value::<User>(value.clone()) {
+                    Ok(user) => Some(user),
+                    Err(e) => {
+                        warn!(
+                            error = %e,
+                            raw_json_value = ?value.to_string(),
+                            "Failed to deserialize user from raw value. Skipping this entry."
+                        );
+                        None
+                    }
+                },
+            )
+            .collect();
+
+        let parsed_count = users.len();
+
+        if parsed_count < raw_count {
+            warn!(
+                parsed_count,
+                raw_count,
+                lost_count = raw_count - parsed_count,
+                "Some user entries failed to parse and were skipped."
+            );
+        } else {
+            info!(
+                count = parsed_count,
+                "Successfully fetched and parsed all users."
+            );
+        }
+
+        Ok(users)
+    }
+}
