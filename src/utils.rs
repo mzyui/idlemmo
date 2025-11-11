@@ -21,5 +21,10 @@ pub fn obfuscate_email(email: &str) -> String {
     let mut parts = email.split('@');
     let local = parts.next().unwrap_or("");
     let domain = parts.next().unwrap_or("");
-    format!("{}...@{}", &local[..local.len().min(3)], domain)
+    format!(
+        "{}{}.@{}",
+        &local[..local.len().min(3)],
+        "*".repeat(local.len() - 3),
+        domain
+    )
 }
