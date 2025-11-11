@@ -28,9 +28,6 @@ pub enum AppError {
     #[error("JSON serialization/deserialization error: {0}")]
     SerdeJson(#[from] serde_json::Error),
 
-    #[error("Inquire error: {0}")]
-    Inquire(#[from] inquire::InquireError),
-
     #[error("An unknown error occurred: {0}")]
     Anyhow(#[from] anyhow::Error),
 
@@ -45,6 +42,9 @@ pub enum AppError {
 
     #[error("URL parse error: {0}")]
     UrlParseError(#[from] url::ParseError),
+
+    #[error("User input error: {0}")]
+    UserInputError(#[from] requestty::ErrorKind),
 }
 
 pub type Result<T> = std::result::Result<T, AppError>;
