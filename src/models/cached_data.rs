@@ -12,8 +12,10 @@ pub struct CachedData {
 
 impl Debug for CachedData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "locations: {:#?}", self.locations)?;
-        write!(f, "character_info: {:#?}", self.character_info)?;
-        Ok(())
+        f.debug_struct("CachedData")
+            .field("locations", &self.locations)
+            .field("character_info", &self.character_info)
+            .field("csrf_token", &self.csrf_token)
+            .finish()
     }
 }
