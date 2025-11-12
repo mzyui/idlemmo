@@ -1,5 +1,15 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STD;
+use once_cell::sync::OnceCell;
+use regex::Regex;
+
+#[macro_export]
+macro_rules! lazy_regex {
+    ($regex_str:expr) => {{
+        static REGEX: ::once_cell::sync::OnceCell<::regex::Regex> = ::once_cell::sync::OnceCell::new();
+        REGEX.get_or_init(|| ::regex::Regex::new($regex_str).unwrap())
+    }};
+}
 
 pub fn generate_obfuscated_data(key: Option<&str>) -> String {
     let key = key.unwrap_or("fair-maiden");
