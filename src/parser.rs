@@ -1,8 +1,12 @@
+use crate::lazy_regex;
 use html_escape::decode_html_entities;
-use once_cell_regex::regex;
+use once_cell::sync::OnceCell;
 use regex::Regex;
 
-use crate::{error::{AppError, Result}, models::SkillType};
+use crate::{
+    error::{AppError, Result},
+    models::SkillType,
+};
 
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
@@ -24,25 +28,25 @@ pub enum Parser {
 
 impl Parser {
     pub fn to_regex(&self) -> &'static Regex {
-        match self.clone() {
-            Self::CsrfToken => regex!(r#"name="csrf-token"\s*content="([^"]+)"#),
-            Self::ApiToken => regex!(r#"name="api-token"\s*content="([^"]+)"#),
-            Self::CharacterId => regex!(r#"name="character-id"\s*content="([^"]+)"#),
-            Self::TwoFactorUrl => regex!(r#"action="(https://web.idle-mmo.com/2fa/[^"]+)"#),
-            Self::SkillData(ref skill_type) => skill_type.to_regex(),
+        match self {
+            Self::CsrfToken => lazy_regex!(r#"name="csrf-token"\s*content="([^"]+)"#),
+            Self::ApiToken => lazy_regex!(r#"name="api-token"\s*content="([^"]+)""#),
+            Self::CharacterId => lazy_regex!(r#"name="character-id"\s*content="([^"]+)"#),
+            Self::TwoFactorUrl => lazy_regex!(r#"action="(https://web.idle-mmo.com/2fa/[^"]+)"#),
+            Self::SkillData(skill_type) => skill_type.to_regex(),
             Self::CharacterInformationApiEndpoint => {
-                regex!(r#"(https?.+?/character\\?/information[^'"]+)"#)
+                lazy_regex!(r#"(https?.+?/character\\?/information[^'"]+)""#)
             }
-            Self::CharactersAllApiEndpoint => regex!(r#"(https?.+?/characters\\?/all[^'"]+)"#),
-            Self::LocationsAllApiEndpoint => regex!(r#"(https?.*?/locations\\?/all[^'"]+)"#),
+            Self::CharactersAllApiEndpoint => lazy_regex!(r#"(https?.+?/characters\\?/all[^'"]+)""#),
+            Self::LocationsAllApiEndpoint => lazy_regex!(r#"(https?.*?/locations\\?/all[^'"]+)""#),
             Self::LocationsTravelApiEndpoint => {
-                regex!(r#"travel.*?(https?.*?/locations\\?/travel[^'"]+)"#)
+                lazy_regex!(r#"travel.*?(https?.*?/locations\\?/travel[^'"]+)""#)
             }
             Self::QuickViewLocationApiEndpoint => {
-                regex!(r#"(https?.*?/quick-view\\?/location[^'"]+)"#)
+                lazy_regex!(r#"(https?.*?/quick-view\\?/location[^'"]+)"#)
             }
-            Self::ActionActiveApiEndpoint => regex!(r#"(https?.*?/action\\?/active[^'"]+)"#),
-            Self::SkillsStartApiEndpoint => regex!(r#"(https?.*?/skills\\?/start[^'"]+)"#),
+            Self::ActionActiveApiEndpoint => lazy_regex!(r#"(https?.*?/action\\?/active[^'"]+)""#),
+            Self::SkillsStartApiEndpoint => lazy_regex!(r#"(https?.*?/skills\\?/start[^'"]+)""#),
         }
     }
 

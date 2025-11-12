@@ -1,13 +1,23 @@
+use crate::lazy_regex;
 use enum_iterator::Sequence;
-use once_cell_regex::regex;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 
 #[derive(
-    Debug, Clone, Deserialize_enum_str, Serialize_enum_str, Sequence, PartialEq, Eq, PartialOrd, Ord,
+    Default,
+    Debug,
+    Clone,
+    Deserialize_enum_str,
+    Serialize_enum_str,
+    Sequence,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
 )]
 pub enum SkillType {
+    #[default]
     Woodcutting,
     Mining,
     Fishing,
@@ -22,25 +32,41 @@ pub enum SkillType {
 impl SkillType {
     pub fn to_regex(&self) -> &'static Regex {
         match *self {
-            Self::Woodcutting => regex!(r"(?s)Woodcutting.*?Lv\.\s*(\d+)"),
-            Self::Mining => regex!(r"(?s)Mining.*?Lv\.\s*(\d+)"),
-            Self::Fishing => regex!(r"(?s)Fishing.*?Lv\.\s*(\d+)"),
-            Self::Alchemy => regex!(r"(?s)Alchemy.*?Lv\.\s*(\d+)"),
-            Self::Smelting => regex!(r"(?s)Smelting.*?Lv\.\s*(\d+)"),
-            Self::Cooking => regex!(r"(?s)Cooking.*?Lv\.\s*(\d+)"),
-            Self::Forge => regex!(r"(?s)Forge.*?Lv\.\s*(\d+)"),
-            Self::Meditation => regex!(r"(?s)Meditation.*?Lv\.\s*(\d+)"),
-            Self::Travelling => regex!(r"(?s)Travelling.*?Lv\.\s*(\d+)"),
+            Self::Woodcutting => lazy_regex!(
+                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/woodcutting"#
+            ),
+            Self::Mining => lazy_regex!(
+                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/mining"#
+            ),
+            Self::Fishing => lazy_regex!(
+                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/fishing"#
+            ),
+            Self::Alchemy => lazy_regex!(
+                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/alchemy"#
+            ),
+            Self::Smelting => lazy_regex!(
+                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/melting"#
+            ),
+            Self::Cooking => lazy_regex!(
+                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/cooking"#
+            ),
+            Self::Forge => lazy_regex!(
+                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/forge"#
+            ),
+            Self::Meditation => lazy_regex!(
+                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/meditation"#
+            ),
+            _ => lazy_regex!(""),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Skill {
     pub id: i64,
     pub name: String,
     #[serde(rename = "skill")]
-    pub r#type: SkillType,
+    pub skill_type: SkillType,
     pub level_required: i64,
 }
 
@@ -48,4 +74,28 @@ pub struct Skill {
 pub struct SkillData {
     pub skill_item_id: u64,
     pub quantity: u64,
+    #[serde(default)]
+    pub essence_crystal: Option<u64>,
+    #[serde(default)]
+    pub auto_purchase: bool,
+}
+
+#[derive(Debug, Default)]
+pub enum FilterBy {
+    #[default]
+    HighestLevelRequired,
+    LowestLevelRequired,
+    FastestTime,
+    LongestTime,
+    HighestExperience,
+    LowestExperience,
+    ItemName(String),
+}
+
+#[derive(Debug, Default)]
+pub struct SkillConfig {
+    pub skill_type: SkillType,
+    pub essence_crystal: Option<u64>,
+    pub auto_purchase: bool,
+    pub filter_by: FilterBy,
 }

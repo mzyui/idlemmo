@@ -21,10 +21,3 @@ pub enum TravelMode {
     Walk,
     Teleport,
 }
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub(crate) struct LocationResponseData {
-    #[serde(default)]
-    pub status: String,
-    pub message: String,
-}
