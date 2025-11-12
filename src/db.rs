@@ -5,10 +5,10 @@ use tracing::{debug, info, warn};
 use crate::{
     config::Config,
     error::{AppError, Result},
-    models::User,
+    models::Account,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DbClient {
     client: SupabaseClient,
 }
@@ -22,7 +22,7 @@ impl DbClient {
         Ok(Self { client })
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip_all)]
     pub async fn remove_user(&self, user_id: i64) -> Result<()> {
         self.client
             .delete("users", &user_id.to_string())
@@ -46,7 +46,7 @@ impl DbClient {
     }
 
     #[tracing::instrument(skip_all)]
-    pub async fn get_users(&self) -> Result<Vec<User>> {
+    pub async fn list_users(&self) -> Result<Vec<Account>> {
         info!("Fetching all users from Supabase 'users' table...");
         let raw_values = self
             .client
@@ -58,10 +58,10 @@ impl DbClient {
         let raw_count = raw_values.len();
         debug!(raw_count, "Received raw values from Supabase.");
 
-        let users: Vec<User> = raw_values
+        let users: Vec<Account> = raw_values
             .into_iter()
             .filter_map(
-                |value| match serde_json::from_value::<User>(value.clone()) {
+                |value| match serde_json::from_value::<Account>(value.clone()) {
                     Ok(user) => Some(user),
                     Err(e) => {
                         warn!(
