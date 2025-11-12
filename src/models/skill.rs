@@ -1,4 +1,7 @@
-use crate::lazy_regex;
+use crate::{
+    error::{AppError, Result},
+    lazy_regex,
+};
 use enum_iterator::Sequence;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -30,34 +33,13 @@ pub enum SkillType {
 }
 
 impl SkillType {
-    pub fn to_regex(&self) -> &'static Regex {
-        match *self {
-            Self::Woodcutting => lazy_regex!(
-                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/woodcutting"#
-            ),
-            Self::Mining => lazy_regex!(
-                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/mining"#
-            ),
-            Self::Fishing => lazy_regex!(
-                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/fishing"#
-            ),
-            Self::Alchemy => lazy_regex!(
-                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/alchemy"#
-            ),
-            Self::Smelting => lazy_regex!(
-                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/melting"#
-            ),
-            Self::Cooking => lazy_regex!(
-                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/cooking"#
-            ),
-            Self::Forge => lazy_regex!(
-                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/forge"#
-            ),
-            Self::Meditation => lazy_regex!(
-                r#"<li[^>]*x-data="\{\s*level\s*:\s*(\d+)\s*\}"[\s\S]*?<a[^>]+href=['"][^'"]*/skills/view/meditation"#
-            ),
-            _ => lazy_regex!(""),
+    pub fn from_str(s: &str) -> Result<Self> {
+        for skill_type in enum_iterator::all::<Self>() {
+            if skill_type.to_string().to_lowercase() == s.to_lowercase() {
+                return Ok(skill_type);
+            }
         }
+        Err(AppError::Parse("Failed to parse skill type.".into()))
     }
 }
 

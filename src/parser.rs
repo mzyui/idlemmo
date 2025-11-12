@@ -15,7 +15,7 @@ pub enum Parser {
     ApiToken,
     CharacterId,
     TwoFactorUrl,
-    SkillData(SkillType),
+    SkillData,
     CharacterInformationApiEndpoint,
     CharactersAllApiEndpoint,
     LocationsAllApiEndpoint,
@@ -33,11 +33,13 @@ impl Parser {
             Self::ApiToken => lazy_regex!(r#"name="api-token"\s*content="([^"]+)""#),
             Self::CharacterId => lazy_regex!(r#"name="character-id"\s*content="([^"]+)"#),
             Self::TwoFactorUrl => lazy_regex!(r#"action="(https://web.idle-mmo.com/2fa/[^"]+)"#),
-            Self::SkillData(skill_type) => skill_type.to_regex(),
+            Self::SkillData => lazy_regex!(r#"(?s)level: (\d+).+?skills/view/([^'\"]+)"#),
             Self::CharacterInformationApiEndpoint => {
                 lazy_regex!(r#"(https?.+?/character\\?/information[^'"]+)""#)
             }
-            Self::CharactersAllApiEndpoint => lazy_regex!(r#"(https?.+?/characters\\?/all[^'"]+)""#),
+            Self::CharactersAllApiEndpoint => {
+                lazy_regex!(r#"(https?.+?/characters\\?/all[^'"]+)""#)
+            }
             Self::LocationsAllApiEndpoint => lazy_regex!(r#"(https?.*?/locations\\?/all[^'"]+)""#),
             Self::LocationsTravelApiEndpoint => {
                 lazy_regex!(r#"travel.*?(https?.*?/locations\\?/travel[^'"]+)""#)

@@ -28,10 +28,11 @@ impl CharacterApi for IdleMMOClient {
         let mut char_info = api_response.json::<CharacterInfo>().await?;
 
         std::fs::write("@val.html", &self.cache.html)?;
-        for skill_type in enum_iterator::all::<SkillType>() {
-            if let Ok(value) = Parser::SkillData(skill_type.clone()).get_value(&self.cache.html) {
-                char_info.update_skill(skill_type, &value)?;
-            }
+        let regex = Parser::SkillData.to_regex();
+        for cap in regex.captures_iter(&self.cache.html) {
+            let (_, [level, skill_type]) = cap.extract();
+            let skill_type = SkillType::from_str(skill_type)?;
+            char_info.update_skill(skill_type, level)?;
         }
 
         info!(
