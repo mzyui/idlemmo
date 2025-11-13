@@ -45,6 +45,9 @@ pub enum AppError {
 
     #[error("User input error: {0}")]
     UserInputError(#[from] requestty::ErrorKind),
+
+    #[error("Application error: {0}")]
+    Application(String),
 }
 
 pub type Result<T> = std::result::Result<T, AppError>;

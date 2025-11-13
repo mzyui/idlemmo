@@ -18,6 +18,7 @@ pub struct CharacterInfo {
     pub shards: i64,
     pub health: i64,
     pub max_health: i64,
+    pub location_id: i64,
 }
 
 impl CharacterInfo {

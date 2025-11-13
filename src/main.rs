@@ -13,16 +13,16 @@ use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt::Subscriber};
 
 use crate::{
-    client::{AccountManagement, ActionSkillApi, CharacterApi, IdleMMOClient},
+    client::{AccountManagement, ActionSkillApi, CharacterApi, IdleMMOClient, LocationApi},
     error::Result,
     models::SkillConfig,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     Subscriber::builder()
-        .with_env_filter(filter)
+        .with_env_filter(env_filter)
         .with_target(false)
         .without_time()
         .compact()
@@ -35,18 +35,21 @@ async fn main() -> Result<()> {
 async fn run() -> Result<()> {
     let mut client = IdleMMOClient::new()?;
 
-    let users = client.get_account().await?;
-    let user = fastrand::choice(users).unwrap();
+    let accounts = client.get_account().await?;
+    let account = fastrand::choice(accounts).unwrap();
 
-    client.load_account(user).await?;
-    dbg!(client.get_all_characters().await?);
+    client.load_account(account).await?;
+    dbg!(client.get_locations(false).await?);
 
+    // dbg!(&client.cache.character_info);
+    //
     // client
-    //     .start_skill(SkillConfig {
+    //     .start_skill(dbg!(SkillConfig {
     //         skill_type: models::SkillType::Mining,
     //         ..Default::default()
-    //     })
+    //     }))
     //     .await?;
+    // dbg!(&client.cache.character_info);
 
     return Ok(());
 
@@ -84,19 +87,19 @@ fn make_questions() -> Vec<Question<'static>> {
             .build(),
         Question::input("email")
             .message("Email:")
-            .when(|ans: &Answers| {
-                ans.get("choice")
-                    .and_then(|a| a.as_list_item())
-                    .is_some_and(|i| i.index == 1)
+            .when(|answers: &Answers| {
+                answers.get("choice")
+                    .and_then(|answer| answer.as_list_item())
+                    .is_some_and(|item| item.index == 1)
             })
             .validate_on_key(|v: &str, _: &Answers| v.contains('@'))
             .build(),
         Question::password("password")
             .message("Password:")
-            .when(|ans: &Answers| {
-                ans.get("choice")
-                    .and_then(|a| a.as_list_item())
-                    .is_some_and(|i| i.index == 1)
+            .when(|answers: &Answers| {
+                answers.get("choice")
+                    .and_then(|answer| answer.as_list_item())
+                    .is_some_and(|item| item.index == 1)
             })
             .mask('•')
             .build(),
@@ -112,18 +115,18 @@ async fn handle_choice(
         0 => {
             info!("Starting bot...");
 
-            for user in client.get_account().await? {
-                client.load_account(user).await?;
+            for account in client.get_account().await? {
+                client.load_account(account).await?;
             }
         }
         1 => {
             let email = answers
                 .get("email")
-                .and_then(|a| a.as_string())
+                .and_then(|answer| answer.as_string())
                 .unwrap_or_default();
             let password = answers
                 .get("password")
-                .and_then(|a| a.as_string())
+                .and_then(|answer| answer.as_string())
                 .unwrap_or_default();
             if email.is_empty() || password.is_empty() {
                 warn!("Email and password cannot be empty.");
@@ -133,8 +136,8 @@ async fn handle_choice(
         }
         2 => {
             info!("Rechecking accounts...");
-            for user in client.get_account().await? {
-                client.load_account(user).await?;
+            for account in client.get_account().await? {
+                client.load_account(account).await?;
             }
             info!("Accounts rechecked.");
         }

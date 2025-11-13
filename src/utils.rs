@@ -3,6 +3,8 @@ use base64::engine::general_purpose::STANDARD as BASE64_STD;
 use once_cell::sync::OnceCell;
 use regex::Regex;
 
+pub const API_VERSION: &str = "1.0.0.1";
+
 #[macro_export]
 macro_rules! lazy_regex {
     ($regex_str:expr) => {{
@@ -11,30 +13,30 @@ macro_rules! lazy_regex {
     }};
 }
 
-pub fn generate_obfuscated_data(key: Option<&str>) -> String {
-    let key = key.unwrap_or("fair-maiden");
-    let text = fastrand::u64(400..600).to_string();
-    let key_codes: Vec<u32> = key.chars().map(|c| c as u32).collect();
-    let mut encrypted: Vec<u8> = Vec::with_capacity(text.len());
+pub fn generate_obfuscated_data(encryption_key_option: Option<&str>) -> String {
+    let encryption_key = encryption_key_option.unwrap_or("fair-maiden");
+    let random_text = fastrand::u64(400..600).to_string();
+    let key_char_codes: Vec<u32> = encryption_key.chars().map(|c| c as u32).collect();
+    let mut encrypted_bytes: Vec<u8> = Vec::with_capacity(random_text.len());
 
-    for (i, ch) in text.chars().enumerate() {
-        let t = ch as u32;
-        let k = key_codes[i % key_codes.len()];
-        let xor_val = (t ^ k) & 0xFF;
-        encrypted.push(xor_val as u8);
+    for (i, text_char) in random_text.chars().enumerate() {
+        let text_char_code = text_char as u32;
+        let key_char_code = key_char_codes[i % key_char_codes.len()];
+        let xor_result = (text_char_code ^ key_char_code) & 0xFF;
+        encrypted_bytes.push(xor_result as u8);
     }
 
-    BASE64_STD.encode(encrypted)
+    BASE64_STD.encode(encrypted_bytes)
 }
 
 pub fn obfuscate_email(email: &str) -> String {
-    let mut parts = email.split('@');
-    let local = parts.next().unwrap_or("");
-    let domain = parts.next().unwrap_or("");
+    let mut email_parts = email.split('@');
+    let local_part = email_parts.next().unwrap_or("");
+    let domain_part = email_parts.next().unwrap_or("");
     format!(
         "{}{}.@{}",
-        &local[..local.len().min(3)],
-        "*".repeat(local.len() - 3),
-        domain
+        &local_part[..local_part.len().min(3)],
+        "*".repeat(local_part.len() - 3),
+        domain_part
     )
 }

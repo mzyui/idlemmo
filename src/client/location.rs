@@ -12,7 +12,7 @@ use crate::{
         location::{Location, TravelMode},
     },
     parser::Parser,
-    utils::generate_obfuscated_data,
+    utils::{API_VERSION, generate_obfuscated_data},
 };
 
 #[allow(dead_code)]
@@ -30,13 +30,13 @@ impl LocationApi for IdleMMOClient {
             return Ok(self.cache.locations.clone());
         }
 
-        let all_locs_url = Parser::LocationsAllApiEndpoint.get_value(&self.cache.html)?;
-        debug!(url = %all_locs_url, "Calling API: Get All Locations");
+        let all_locations_api_url = Parser::LocationsAllApiEndpoint.get_value(&self.cache.html)?;
+        debug!(url = %all_locations_api_url, "Calling API: Get All Locations");
 
-        let response = self.client.post(all_locs_url).send().await?;
-        let json: Value = response.json().await?;
+        let http_response = self.client.post(all_locations_api_url).send().await?;
+        let json_response_data: Value = http_response.json().await?;
 
-        let location_ids: Vec<i64> = json
+        let raw_location_ids: Vec<i64> = json_response_data
             .as_object()
             .map(|obj| {
                 obj.values()
@@ -45,55 +45,55 @@ impl LocationApi for IdleMMOClient {
             })
             .unwrap_or_default();
 
-        let total_locs = location_ids.len();
-        debug!(count = total_locs, "Found initial locations.");
-        let mut locations = Vec::with_capacity(total_locs);
-        if total_locs == 0 {
+        let total_raw_locations = raw_location_ids.len();
+        debug!(count = total_raw_locations, "Found initial locations.");
+        let mut filtered_locations = Vec::with_capacity(total_raw_locations);
+        if total_raw_locations == 0 {
             warn!("No locations found in the initial fetch.");
         } else {
-            let quick_view_url =
+            let quick_view_api_url =
                 Parser::QuickViewLocationApiEndpoint.get_value(&self.cache.html)?;
-            for location_id in location_ids {
-                let response = self
+            for current_location_id in raw_location_ids {
+                let quick_view_response = self
                     .client
-                    .post(&quick_view_url)
-                    .json(&json!({ "location_id": location_id }))
+                    .post(&quick_view_api_url)
+                    .json(&json!({ "location_id": current_location_id }))
                     .send()
                     .await?;
 
-                let mut location = response.json::<Location>().await?;
-                location
+                let mut current_location_details = quick_view_response.json::<Location>().await?;
+                current_location_details
                     .enemies
-                    .retain(|enemy| enemy.level >= self.cache.character_info.combat_level);
-                location.skill_items.retain(|skill| {
-                    let level = self
+                    .retain(|current_enemy| current_enemy.level >= self.cache.character_info.combat_level);
+                current_location_details.skill_items.retain(|current_skill| {
+                    let character_skill_level = self
                         .cache
                         .character_info
                         .skill_level
-                        .entry(skill.skill_type.clone())
+                        .entry(current_skill.skill_type.clone())
                         .or_default();
-                    *level >= skill.level_required
+                    *character_skill_level >= current_skill.level_required
                 });
-                if !location.enemies.is_empty() || !location.skill_items.is_empty() {
-                    locations.push(location);
+                if !current_location_details.enemies.is_empty() || !current_location_details.skill_items.is_empty() {
+                    filtered_locations.push(current_location_details);
                 }
             }
-            locations.sort_by_key(|v| Reverse(v.distance));
-            self.cache.locations.clone_from(&locations);
+            filtered_locations.sort_by_key(|location_by_distance| Reverse(location_by_distance.distance));
+            self.cache.locations.clone_from(&filtered_locations);
         }
-        info!(count = locations.len(), "Finished filtering locations.");
-        Ok(locations)
+        info!(count = filtered_locations.len(), "Finished filtering locations.");
+        Ok(filtered_locations)
     }
 
     #[tracing::instrument(skip(self, location, travel_mode))]
     async fn move_location(&mut self, travel_mode: TravelMode, location: Location) -> Result<()> {
         info!(location = %location.name, ?travel_mode, "Attempting to move to new location.");
-        let message = match travel_mode {
+        let status_message = match travel_mode {
             TravelMode::Teleport => {
-                let current_gold = self.cache.character_info.gold;
-                if current_gold < location.teleport_cost {
+                let character_gold_amount = self.cache.character_info.gold;
+                if character_gold_amount < location.teleport_cost {
                     warn!(
-                        current_gold,
+                        current_gold = character_gold_amount,
                         cost = location.teleport_cost,
                         "Teleport failed: Not enough gold."
                     );
@@ -113,33 +113,33 @@ impl LocationApi for IdleMMOClient {
 
                 self.update_current_data().await?;
 
-                if current_gold > self.cache.character_info.gold {
+                if character_gold_amount != self.cache.character_info.gold {
                     "Teleport successful".to_string()
                 } else {
                     "You already at location".to_string()
                 }
             }
             TravelMode::Walk => {
-                let api_url = Parser::LocationsTravelApiEndpoint.get_value(&self.cache.html)?;
-                let response = self
+                let travel_api_url = Parser::LocationsTravelApiEndpoint.get_value(&self.cache.html)?;
+                let travel_http_response = self
                     .client
-                    .post(api_url)
+                    .post(travel_api_url)
                     .json(&json!({
                         "location_id": location.id,
                         "ts2mic5ytx": generate_obfuscated_data(None),
                         "qty6bx4peh": generate_obfuscated_data(None),
-                        "v": "1.0.0.1"
+                        "v": API_VERSION
                     }))
                     .send()
                     .await?;
-                let msg_data = response.json::<ResponseData>().await?;
-                msg_data.message
+                let response_message_data = travel_http_response.json::<ResponseData>().await?;
+                response_message_data.message
             }
         };
 
         info!(
             location = %location.name,
-            "{}", message
+            "{}", status_message
         );
         Ok(())
     }

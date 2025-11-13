@@ -11,14 +11,14 @@ fn deserialize_capitalize<'de, D>(deserializer: D) -> Result<SkillType, D::Error
 where
     D: Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
+    let input_string = String::deserialize(deserializer)?;
 
-    let mut c = s.chars();
-    let capitalized = match c.next() {
+    let mut chars_iterator = input_string.chars();
+    let capitalized_string = match chars_iterator.next() {
         None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        Some(first_char) => first_char.to_uppercase().collect::<String>() + chars_iterator.as_str(),
     };
-    SkillType::deserialize(capitalized.into_deserializer())
+    SkillType::deserialize(capitalized_string.into_deserializer())
 }
 
 #[derive(Deserialize, Default, Debug)]
@@ -36,32 +36,32 @@ fn extract_item_name<'de, D>(deserializer: D) -> Result<Option<String>, D::Error
 where
     D: Deserializer<'de>,
 {
-    let inner = InnerItem::deserialize(deserializer).unwrap_or_default();
-    Ok(inner.name)
+    let inner_item = InnerItem::deserialize(deserializer).unwrap_or_default();
+    Ok(inner_item.name)
 }
 
 fn extract_refresh_data<'de, D>(deserializer: D) -> Result<Option<SkillData>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let inner = InnerItem::deserialize(deserializer)?;
-    Ok(inner.data)
+    let inner_item = InnerItem::deserialize(deserializer)?;
+    Ok(inner_item.data)
 }
 
 fn extract_percentage<'de, D>(deserializer: D) -> Result<f64, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let inner = InnerItem::deserialize(deserializer)?;
-    Ok(inner.percentage)
+    let inner_item = InnerItem::deserialize(deserializer)?;
+    Ok(inner_item.percentage)
 }
 
 fn deserialize_timedelta_from_milliseconds<'de, D>(deserializer: D) -> Result<TimeDelta, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let milliseconds = i64::deserialize(deserializer)?;
-    Ok(TimeDelta::milliseconds(milliseconds))
+    let milliseconds_value = i64::deserialize(deserializer)?;
+    Ok(TimeDelta::milliseconds(milliseconds_value))
 }
 
 #[derive(Serialize, Deserialize, Debug)]

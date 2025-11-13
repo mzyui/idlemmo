@@ -22,8 +22,8 @@ pub enum Parser {
     LocationsTravelApiEndpoint,
     QuickViewLocationApiEndpoint,
     ActionActiveApiEndpoint,
-
     SkillsStartApiEndpoint,
+    SkillsDataApiEndpoint,
 }
 
 impl Parser {
@@ -49,18 +49,19 @@ impl Parser {
             }
             Self::ActionActiveApiEndpoint => lazy_regex!(r#"(https?.*?/action\\?/active[^'"]+)""#),
             Self::SkillsStartApiEndpoint => lazy_regex!(r#"(https?.*?/skills\\?/start[^'"]+)""#),
+            Self::SkillsDataApiEndpoint => lazy_regex!(r#"(https?.*?/skills\\?/data[^'"]+)""#),
         }
     }
 
-    pub fn get_value(&self, haystack: &str) -> Result<String> {
-        let regex = self.to_regex();
-        let value = regex
-            .captures(haystack)
+    pub fn get_value(&self, input_text: &str) -> Result<String> {
+        let parser_regex = self.to_regex();
+        let captured_value = parser_regex
+            .captures(input_text)
             .and_then(|caps| caps.get(1))
             .map(|val| val.as_str())
             .ok_or_else(|| AppError::Parse(format!("Failed to find value for key: {self:?}")))?;
-        let decoded = decode_html_entities(value).to_string();
-        let unescaped = decoded.replace('\\', "").replace("u0026", "&");
-        Ok(unescaped)
+        let decoded_html = decode_html_entities(captured_value).to_string();
+        let unescaped_string = decoded_html.replace('\\', "").replace("u0026", "&");
+        Ok(unescaped_string)
     }
 }

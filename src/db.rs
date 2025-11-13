@@ -48,25 +48,25 @@ impl DbClient {
     #[tracing::instrument(skip_all)]
     pub async fn list_users(&self) -> Result<Vec<Account>> {
         info!("Fetching all users from Supabase 'users' table...");
-        let raw_values = self
+        let raw_accounts_data = self
             .client
             .select("users")
             .execute()
             .await
             .map_err(|e| AppError::SupabaseRequest(e.to_string()))?;
 
-        let raw_count = raw_values.len();
-        debug!(raw_count, "Received raw values from Supabase.");
+        let raw_accounts_count = raw_accounts_data.len();
+        debug!(raw_accounts_count, "Received raw values from Supabase.");
 
-        let users: Vec<Account> = raw_values
+        let accounts: Vec<Account> = raw_accounts_data
             .into_iter()
             .filter_map(
-                |value| match serde_json::from_value::<Account>(value.clone()) {
-                    Ok(user) => Some(user),
+                |raw_account_value| match serde_json::from_value::<Account>(raw_account_value.clone()) {
+                    Ok(account) => Some(account),
                     Err(e) => {
                         warn!(
                             error = %e,
-                            raw_json_value = ?value.to_string(),
+                            raw_json_value = ?raw_account_value.to_string(),
                             "Failed to deserialize user from raw value. Skipping this entry."
                         );
                         None
@@ -75,22 +75,22 @@ impl DbClient {
             )
             .collect();
 
-        let parsed_count = users.len();
+        let parsed_accounts_count = accounts.len();
 
-        if parsed_count < raw_count {
+        if parsed_accounts_count < raw_accounts_count {
             warn!(
-                parsed_count,
-                raw_count,
-                lost_count = raw_count - parsed_count,
+                parsed_count = parsed_accounts_count,
+                raw_count = raw_accounts_count,
+                lost_count = raw_accounts_count - parsed_accounts_count,
                 "Some user entries failed to parse and were skipped."
             );
         } else {
             info!(
-                count = parsed_count,
+                count = parsed_accounts_count,
                 "Successfully fetched and parsed all users."
             );
         }
 
-        Ok(users)
+        Ok(accounts)
     }
 }

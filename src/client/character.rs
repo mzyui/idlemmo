@@ -14,57 +14,57 @@ use crate::{
 pub trait CharacterApi {
     async fn get_character_information(&mut self) -> Result<CharacterInfo>;
     async fn get_all_characters(&self) -> Result<Vec<Character>>;
-    async fn switch_character(&mut self, char: Character) -> Result<()>;
+    async fn switch_character(&mut self, character_to_switch: Character) -> Result<()>;
 }
 
 #[async_trait]
 impl CharacterApi for IdleMMOClient {
     #[tracing::instrument(skip(self))]
     async fn get_character_information(&mut self) -> Result<CharacterInfo> {
-        let api_url = Parser::CharacterInformationApiEndpoint.get_value(&self.cache.html)?;
-        debug!(url = %api_url, "Calling API: Get Character Information");
+        let character_info_api_url = Parser::CharacterInformationApiEndpoint.get_value(&self.cache.html)?;
+        debug!(url = %character_info_api_url, "Calling API: Get Character Information");
 
-        let api_response = self.client.post(&api_url).json(&json!({})).send().await?;
-        let mut char_info = api_response.json::<CharacterInfo>().await?;
+        let http_api_response = self.client.post(&character_info_api_url).json(&json!({})).send().await?;
+        let mut character_details = http_api_response.json::<CharacterInfo>().await?;
 
         std::fs::write("@val.html", &self.cache.html)?;
-        let regex = Parser::SkillData.to_regex();
-        for cap in regex.captures_iter(&self.cache.html) {
-            let (_, [level, skill_type]) = cap.extract();
-            let skill_type = SkillType::from_str(skill_type)?;
-            char_info.update_skill(skill_type, level)?;
+        let skill_data_regex = Parser::SkillData.to_regex();
+        for capture in skill_data_regex.captures_iter(&self.cache.html) {
+            let (_, [skill_level_str, skill_type_str]) = capture.extract();
+            let parsed_skill_type = SkillType::from_str(skill_type_str)?;
+            character_details.update_skill(parsed_skill_type, skill_level_str)?;
         }
 
         info!(
-            name = %char_info.name,
-            id = char_info.id,
+            name = %character_details.name,
+            id = character_details.id,
             "Character information fetched."
         );
-        Ok(char_info)
+        Ok(character_details)
     }
 
     #[tracing::instrument(skip(self))]
     async fn get_all_characters(&self) -> Result<Vec<Character>> {
-        let api_url = Parser::CharactersAllApiEndpoint.get_value(&self.cache.html)?;
-        debug!(url = %api_url, "Calling API: Get All Characters");
+        let all_characters_api_url = Parser::CharactersAllApiEndpoint.get_value(&self.cache.html)?;
+        debug!(url = %all_characters_api_url, "Calling API: Get All Characters");
 
-        let api_response = self.client.post(&api_url).json(&json!({})).send().await?;
-        let raw_value = api_response.json::<Value>().await?;
+        let http_api_response = self.client.post(&all_characters_api_url).json(&json!({})).send().await?;
+        let raw_json_response = http_api_response.json::<Value>().await?;
 
-        let mut chars = vec![];
-        if let Some(characters) = raw_value.get("characters").and_then(|v| v.as_array()) {
-            for char in characters.clone() {
-                chars.push(serde_json::from_value::<Character>(char)?);
+        let mut character_list = vec![];
+        if let Some(json_characters_array) = raw_json_response.get("characters").and_then(|v| v.as_array()) {
+            for json_character_value in json_characters_array.clone() {
+                character_list.push(serde_json::from_value::<Character>(json_character_value)?);
             }
         }
-        info!(count = chars.len(), "All characters fetched.");
+        info!(count = character_list.len(), "All characters fetched.");
 
-        Ok(chars)
+        Ok(character_list)
     }
 
-    #[tracing::instrument(skip(self, char))]
-    async fn switch_character(&mut self, char: Character) -> Result<()> {
-        if char.is_current {
+    #[tracing::instrument(skip(self, character_to_switch))]
+    async fn switch_character(&mut self, character_to_switch: Character) -> Result<()> {
+        if character_to_switch.is_current {
             info!("Target character is already currently active. Skipping switch.");
             return Ok(());
         }
@@ -72,7 +72,7 @@ impl CharacterApi for IdleMMOClient {
         self.client
             .post(format!(
                 "{}user/character/switch/{}",
-                self.base_url, char.id
+                self.base_url, character_to_switch.id
             ))
             .form(&json!({
                 "_token": self.cache.csrf_token,
@@ -82,8 +82,8 @@ impl CharacterApi for IdleMMOClient {
             .await?;
 
         info!(
-            name = %char.name,
-            id = char.id,
+            name = %character_to_switch.name,
+            id = character_to_switch.id,
             "Character switched.");
         self.update_current_data().await?;
         Ok(())

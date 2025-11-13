@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use super::{item::Item, skill::Skill};
+use super::{item::Item, skill::SkillItem};
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub struct Location {
     pub id: i64,
     pub key: String,
@@ -12,7 +12,7 @@ pub struct Location {
     pub distance: i64,
     pub enemies: Vec<Item>,
     pub dungeons: Vec<Item>,
-    pub skill_items: Vec<Skill>,
+    pub skill_items: Vec<SkillItem>,
 }
 
 #[allow(dead_code)]
