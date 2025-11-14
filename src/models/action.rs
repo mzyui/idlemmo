@@ -13,29 +13,33 @@ where
     D: Deserializer<'de>,
 {
     let raw_skill_type_string = String::deserialize(deserializer)?;
-    debug!(?raw_skill_type_string, "Deserializing and capitalizing skill type.");
+    debug!(
+        ?raw_skill_type_string,
+        "Deserializing and capitalizing skill type."
+    );
 
     let mut chars_iterator = raw_skill_type_string.chars();
     let capitalized_skill_type_string = match chars_iterator.next() {
         None => String::new(),
         Some(first_char) => first_char.to_uppercase().collect::<String>() + chars_iterator.as_str(),
     };
-    debug!(?capitalized_skill_type_string, "Capitalized skill type string.");
+    debug!(
+        ?capitalized_skill_type_string,
+        "Capitalized skill type string."
+    );
     SkillType::deserialize(capitalized_skill_type_string.into_deserializer())
 }
 
 #[derive(Deserialize, Default, Debug)]
 struct InnerItem {
-    #[serde(default)]
-    name: Option<String>,
-    #[serde(default)]
+    name: String,
     percentage: f64,
     #[serde(default)]
     data: Option<SkillRequestData>,
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn extract_item_name<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+fn extract_item_name<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -80,13 +84,13 @@ pub struct Action {
     #[serde(rename = "type", deserialize_with = "deserialize_capitalize")]
     pub skill_type: SkillType,
     #[serde(rename = "item", deserialize_with = "extract_item_name")]
-    pub item_name: Option<String>,
+    pub item_name: String,
     #[serde(deserialize_with = "extract_percentage")]
     pub current_progress: f64,
     #[serde(deserialize_with = "deserialize_timedelta_from_milliseconds")]
     pub expires_in: TimeDelta,
-    pub quantity: Option<u64>,
-    pub max_quantity: Option<u64>,
+    pub quantity: u64,
+    pub max_quantity: u64,
     #[serde(rename = "refresh", deserialize_with = "extract_refresh_data")]
     pub refresh_data: Option<SkillRequestData>,
 }

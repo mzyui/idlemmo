@@ -12,7 +12,7 @@ pub struct CharacterInfo {
     pub combat_level: u64,
     #[serde(default)]
     pub skill_level: BTreeMap<SkillType, u64>,
-    pub total_level: u64,
+    pub total_level: Option<u64>,
     pub gold: u64,
     pub tokens: u64,
     pub shards: u64,
@@ -24,7 +24,7 @@ pub struct CharacterInfo {
 impl CharacterInfo {
     pub fn update_skill(&mut self, skill_type: SkillType, value: &str) -> Result<()> {
         let value_int = value.parse::<u64>()?;
-        *self.skill_level.entry(skill_type).or_default() = value_int;
+        self.skill_level.insert(skill_type, value_int);
         Ok(())
     }
 }

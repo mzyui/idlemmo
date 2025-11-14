@@ -77,20 +77,17 @@ where
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq)]
 pub struct SkillItem {
-    #[serde(alias = "item_id")]
+    #[serde(alias = "item_id", default)]
     pub id: u64,
     #[serde(default)]
-    pub name: String,
+    pub name: Option<String>,
     #[serde(rename = "skill", default)]
     pub skill_type: SkillType,
-    #[serde(default)]
     pub level_required: u64,
-    #[serde(default)]
-    pub wait_length_ms: u64,
+    pub wait_length_ms: Option<u64>,
     #[serde(default, deserialize_with = "extract_requirements_item")]
     pub requirements: Vec<SkillItem>,
-    #[serde(default)]
-    pub quantity_requirement: u64,
+    pub quantity_requirement: Option<u64>,
 }
 
 fn duration_from_str<'de, D, E>(deserializer: D) -> std::result::Result<Duration, E>
@@ -118,7 +115,9 @@ where
         }
     }
 
-    let duration = Duration::days(days as i64) + Duration::hours(hours as i64) + Duration::minutes(minutes as i64);
+    let duration = Duration::days(days as i64)
+        + Duration::hours(hours as i64)
+        + Duration::minutes(minutes as i64);
     debug!(?duration, "Constructed duration.");
     Ok(duration)
 }
@@ -128,38 +127,31 @@ where
     D: Deserializer<'de>,
     E: SerdeDeError,
 {
-    // Accept either a number or a string like "1,955"
     let v = Value::deserialize(deserializer).map_err(SerdeDeError::custom)?;
     match v {
-        Value::Number(n) => n
-            .as_u64()
-            .ok_or_else(|| SerdeDeError::custom("number out of range")),
+        Value::Number(n) => Ok(n.as_u64().unwrap_or_default()),
         Value::String(s) => {
             let cleaned = s.replace(',', "");
             cleaned
                 .parse::<u64>()
-                .map_err(|e| SerdeDeError::custom(format!("failed to parse number: {}", e)))
+                .map_err(|e| SerdeDeError::custom(e.to_string()))
         }
-        other => Err(SerdeDeError::custom(format!(
-            "unexpected type for numeric field: {:?}",
-            other
-        ))),
+        _ => Err(SerdeDeError::custom("Not a valid number".to_string())),
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Metrics {
-    #[serde(deserialize_with = "number_from_string")]
+    #[serde(deserialize_with = "number_from_string", default)]
     pub items_gathered: u64,
-    #[serde(deserialize_with = "duration_from_str")]
+    #[serde(deserialize_with = "duration_from_str", default)]
     pub time_spent: Duration,
-    #[serde(deserialize_with = "number_from_string")]
+    #[serde(deserialize_with = "number_from_string", default)]
     pub total_experience: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SkillData {
-    #[serde(default)]
     pub skill_type: SkillType,
     pub items: Vec<SkillItem>,
     pub metrics: Metrics,
@@ -170,7 +162,7 @@ pub struct SkillRequestData {
     pub skill_item_id: u64,
     pub quantity: u64,
     #[serde(default)]
-    pub essence_crystal: Option<u64>,
+    pub essence_crystal: u64,
     #[serde(default)]
     pub auto_purchase: bool,
 }
@@ -190,7 +182,7 @@ pub enum FilterBy {
 #[derive(Debug, Default)]
 pub struct SkillConfig {
     pub skill_type: SkillType,
-    pub essence_crystal: Option<u64>,
+    pub essence_crystal: u64,
     pub auto_purchase: bool,
     pub filter_by: FilterBy,
 }
