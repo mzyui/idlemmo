@@ -2,8 +2,9 @@ use anyhow::Result;
 use chrono::TimeDelta;
 use serde::de::IntoDeserializer;
 use serde::{Deserialize, Deserializer, Serialize};
+use tracing::{debug, info};
 
-use crate::models::SkillData;
+use crate::models::SkillRequestData;
 
 use super::skill::SkillType;
 
@@ -11,14 +12,16 @@ fn deserialize_capitalize<'de, D>(deserializer: D) -> Result<SkillType, D::Error
 where
     D: Deserializer<'de>,
 {
-    let input_string = String::deserialize(deserializer)?;
+    let raw_skill_type_string = String::deserialize(deserializer)?;
+    debug!(?raw_skill_type_string, "Deserializing and capitalizing skill type.");
 
-    let mut chars_iterator = input_string.chars();
-    let capitalized_string = match chars_iterator.next() {
+    let mut chars_iterator = raw_skill_type_string.chars();
+    let capitalized_skill_type_string = match chars_iterator.next() {
         None => String::new(),
         Some(first_char) => first_char.to_uppercase().collect::<String>() + chars_iterator.as_str(),
     };
-    SkillType::deserialize(capitalized_string.into_deserializer())
+    debug!(?capitalized_skill_type_string, "Capitalized skill type string.");
+    SkillType::deserialize(capitalized_skill_type_string.into_deserializer())
 }
 
 #[derive(Deserialize, Default, Debug)]
@@ -28,7 +31,7 @@ struct InnerItem {
     #[serde(default)]
     percentage: f64,
     #[serde(default)]
-    data: Option<SkillData>,
+    data: Option<SkillRequestData>,
 }
 
 #[allow(clippy::unnecessary_wraps)]
@@ -36,32 +39,40 @@ fn extract_item_name<'de, D>(deserializer: D) -> Result<Option<String>, D::Error
 where
     D: Deserializer<'de>,
 {
-    let inner_item = InnerItem::deserialize(deserializer).unwrap_or_default();
-    Ok(inner_item.name)
+    debug!("Extracting item name.");
+    let action_item_data = InnerItem::deserialize(deserializer).unwrap_or_default();
+    debug!(?action_item_data.name, "Extracted item name.");
+    Ok(action_item_data.name)
 }
 
-fn extract_refresh_data<'de, D>(deserializer: D) -> Result<Option<SkillData>, D::Error>
+fn extract_refresh_data<'de, D>(deserializer: D) -> Result<Option<SkillRequestData>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let inner_item = InnerItem::deserialize(deserializer)?;
-    Ok(inner_item.data)
+    debug!("Extracting refresh data.");
+    let action_item_data = InnerItem::deserialize(deserializer)?;
+    debug!(?action_item_data.data, "Extracted refresh data.");
+    Ok(action_item_data.data)
 }
 
 fn extract_percentage<'de, D>(deserializer: D) -> Result<f64, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let inner_item = InnerItem::deserialize(deserializer)?;
-    Ok(inner_item.percentage)
+    debug!("Extracting percentage.");
+    let action_item_data = InnerItem::deserialize(deserializer)?;
+    debug!(?action_item_data.percentage, "Extracted percentage.");
+    Ok(action_item_data.percentage)
 }
 
 fn deserialize_timedelta_from_milliseconds<'de, D>(deserializer: D) -> Result<TimeDelta, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let milliseconds_value = i64::deserialize(deserializer)?;
-    Ok(TimeDelta::milliseconds(milliseconds_value))
+    debug!("Deserializing timedelta from milliseconds.");
+    let milliseconds_value = u64::deserialize(deserializer)?;
+    debug!(?milliseconds_value, "Deserialized milliseconds value.");
+    Ok(TimeDelta::milliseconds(milliseconds_value as i64))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -77,5 +88,5 @@ pub struct Action {
     pub quantity: Option<u64>,
     pub max_quantity: Option<u64>,
     #[serde(rename = "refresh", deserialize_with = "extract_refresh_data")]
-    pub refresh_data: Option<SkillData>,
+    pub refresh_data: Option<SkillRequestData>,
 }

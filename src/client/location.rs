@@ -36,11 +36,11 @@ impl LocationApi for IdleMMOClient {
         let http_response = self.client.post(all_locations_api_url).send().await?;
         let json_response_data: Value = http_response.json().await?;
 
-        let raw_location_ids: Vec<i64> = json_response_data
+        let raw_location_ids: Vec<u64> = json_response_data
             .as_object()
             .map(|obj| {
                 obj.values()
-                    .filter_map(|v| v.get("id").and_then(serde_json::Value::as_i64))
+                    .filter_map(|v| v.get("id").and_then(serde_json::Value::as_u64))
                     .collect()
             })
             .unwrap_or_default();

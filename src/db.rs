@@ -23,7 +23,7 @@ impl DbClient {
     }
 
     #[tracing::instrument(skip_all)]
-    pub async fn remove_user(&self, user_id: i64) -> Result<()> {
+    pub async fn remove_user(&self, user_id: u64) -> Result<()> {
         self.client
             .delete("users", &user_id.to_string())
             .await
