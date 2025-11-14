@@ -62,26 +62,34 @@ impl LocationApi for IdleMMOClient {
                     .await?;
 
                 let mut current_location_details = quick_view_response.json::<Location>().await?;
-                current_location_details
-                    .enemies
-                    .retain(|current_enemy| current_enemy.level >= self.cache.character_info.combat_level);
-                current_location_details.skill_items.retain(|current_skill| {
-                    let character_skill_level = self
-                        .cache
-                        .character_info
-                        .skill_level
-                        .entry(current_skill.skill_type.clone())
-                        .or_default();
-                    *character_skill_level >= current_skill.level_required
+                current_location_details.enemies.retain(|current_enemy| {
+                    current_enemy.level >= self.cache.character_info.combat_level
                 });
-                if !current_location_details.enemies.is_empty() || !current_location_details.skill_items.is_empty() {
+                current_location_details
+                    .skill_items
+                    .retain(|current_skill| {
+                        let character_skill_level = self
+                            .cache
+                            .character_info
+                            .skill_level
+                            .entry(current_skill.skill_type.clone())
+                            .or_default();
+                        *character_skill_level >= current_skill.level_required
+                    });
+                let enemies_empty = current_location_details.enemies.is_empty();
+                let skill_items_empty = current_location_details.skill_items.is_empty();
+                if !enemies_empty || !skill_items_empty {
                     filtered_locations.push(current_location_details);
                 }
             }
-            filtered_locations.sort_by_key(|location_by_distance| Reverse(location_by_distance.distance));
+            filtered_locations
+                .sort_by_key(|location_by_distance| Reverse(location_by_distance.distance));
             self.cache.locations.clone_from(&filtered_locations);
         }
-        info!(count = filtered_locations.len(), "Finished filtering locations.");
+        info!(
+            count = filtered_locations.len(),
+            "Finished filtering locations."
+        );
         Ok(filtered_locations)
     }
 
@@ -120,7 +128,8 @@ impl LocationApi for IdleMMOClient {
                 }
             }
             TravelMode::Walk => {
-                let travel_api_url = Parser::LocationsTravelApiEndpoint.get_value(&self.cache.html)?;
+                let travel_api_url =
+                    Parser::LocationsTravelApiEndpoint.get_value(&self.cache.html)?;
                 let travel_http_response = self
                     .client
                     .post(travel_api_url)

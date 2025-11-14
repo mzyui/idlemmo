@@ -21,10 +21,16 @@ pub trait CharacterApi {
 impl CharacterApi for IdleMMOClient {
     #[tracing::instrument(skip(self))]
     async fn get_character_information(&mut self) -> Result<CharacterInfo> {
-        let character_info_api_url = Parser::CharacterInformationApiEndpoint.get_value(&self.cache.html)?;
+        let character_info_api_url =
+            Parser::CharacterInformationApiEndpoint.get_value(&self.cache.html)?;
         debug!(url = %character_info_api_url, "Calling API: Get Character Information");
 
-        let http_api_response = self.client.post(&character_info_api_url).json(&json!({})).send().await?;
+        let http_api_response = self
+            .client
+            .post(&character_info_api_url)
+            .json(&json!({}))
+            .send()
+            .await?;
         let mut character_details = http_api_response.json::<CharacterInfo>().await?;
 
         std::fs::write("@val.html", &self.cache.html)?;
@@ -45,14 +51,23 @@ impl CharacterApi for IdleMMOClient {
 
     #[tracing::instrument(skip(self))]
     async fn get_all_characters(&self) -> Result<Vec<Character>> {
-        let all_characters_api_url = Parser::CharactersAllApiEndpoint.get_value(&self.cache.html)?;
+        let all_characters_api_url =
+            Parser::CharactersAllApiEndpoint.get_value(&self.cache.html)?;
         debug!(url = %all_characters_api_url, "Calling API: Get All Characters");
 
-        let http_api_response = self.client.post(&all_characters_api_url).json(&json!({})).send().await?;
+        let http_api_response = self
+            .client
+            .post(&all_characters_api_url)
+            .json(&json!({}))
+            .send()
+            .await?;
         let raw_json_response = http_api_response.json::<Value>().await?;
 
         let mut character_list = vec![];
-        if let Some(json_characters_array) = raw_json_response.get("characters").and_then(|v| v.as_array()) {
+        if let Some(json_characters_array) = raw_json_response
+            .get("characters")
+            .and_then(|v| v.as_array())
+        {
             for json_character_value in json_characters_array.clone() {
                 character_list.push(serde_json::from_value::<Character>(json_character_value)?);
             }

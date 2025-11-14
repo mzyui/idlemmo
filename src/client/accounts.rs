@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use requestty::Question;
-use reqwest::{cookie::CookieStore, header::{self, HeaderValue}};
+use reqwest::{
+    cookie::CookieStore,
+    header::{self, HeaderValue},
+};
 use serde_json::json;
 use tracing::{debug, info, warn};
 
@@ -31,7 +34,10 @@ impl AccountManagement for IdleMMOClient {
         let http_response = self
             .client
             .get(self.base_url.clone())
-            .header(header::COOKIE, HeaderValue::from_str(&account_to_load.cookie_str)?)
+            .header(
+                header::COOKIE,
+                HeaderValue::from_str(&account_to_load.cookie_str)?,
+            )
             .send()
             .await?;
 

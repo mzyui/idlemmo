@@ -21,14 +21,19 @@ fn find_best_skill_for_location<'a>(
     location: &'a Location,
     config: &SkillConfig,
 ) -> Option<&'a SkillItem> {
-    let skills_of_type = location
-        .skill_items
+    let skills = &location.skill_items;
+
+    let skills_of_type = skills
         .iter()
         .filter(|skill_item| skill_item.skill_type == config.skill_type);
 
     match config.filter_by {
-        FilterBy::HighestLevelRequired => skills_of_type.max_by_key(|skill_item| skill_item.level_required),
-        FilterBy::LowestLevelRequired => skills_of_type.min_by_key(|skill_item| skill_item.level_required),
+        FilterBy::HighestLevelRequired => {
+            skills_of_type.max_by_key(|skill_item| skill_item.level_required)
+        }
+        FilterBy::LowestLevelRequired => {
+            skills_of_type.min_by_key(|skill_item| skill_item.level_required)
+        }
         _ => unimplemented!(),
     }
 }
@@ -58,8 +63,9 @@ impl ActionSkillApi for IdleMMOClient {
     async fn start_skill(&mut self, config: SkillConfig) -> Result<()> {
         let mut available_locations = self.get_locations(true).await?;
 
-        let (selected_location, selected_skill_item) = find_best_skill(&available_locations, &config)
-            .ok_or_else(|| AppError::Application("No suitable skill found".to_string()))?;
+        let (selected_location, selected_skill_item) =
+            find_best_skill(&available_locations, &config)
+                .ok_or_else(|| AppError::Application("No suitable skill found".to_string()))?;
 
         if self.cache.character_info.location_id != selected_location.id {
             self.move_location(
@@ -90,7 +96,12 @@ impl ActionSkillApi for IdleMMOClient {
         });
 
         dbg!(&request_payload);
-        let http_response = self.client.post(start_skill_api_url).json(&request_payload).send().await?;
+        let http_response = self
+            .client
+            .post(start_skill_api_url)
+            .json(&request_payload)
+            .send()
+            .await?;
         dbg!(&http_response.text().await?[..100]);
         Ok(())
     }
