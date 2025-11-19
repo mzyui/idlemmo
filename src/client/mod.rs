@@ -6,7 +6,7 @@ use reqwest::{
     cookie::Jar,
     header::{self, HeaderMap, HeaderValue},
 };
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     config::Config,
@@ -22,7 +22,6 @@ pub mod character;
 pub mod location;
 
 pub use accounts::AccountManagement;
-pub use actions::ActionSkillApi;
 pub use character::CharacterApi;
 pub use location::LocationApi;
 
@@ -48,7 +47,7 @@ impl IdleMMOClient {
             .user_agent(generated_user_agent.clone())
             .build()?;
         let app_config = Config::from_env()?;
-        let db_client = DbClient::new(&app_config)?;
+        let db_client = DbClient::new(app_config)?;
 
         info!("IdleMMO client initialized.");
         Ok(Self {
@@ -96,7 +95,7 @@ impl IdleMMOClient {
         self.client = ClientBuilder::new()
             .cookie_provider(Arc::clone(&self.jar))
             .default_headers(default_headers)
-            .user_agent(self.user_agent.clone())
+            .user_agent(&self.user_agent)
             .build()?;
 
         info!("Reqwest client successfully rebuilt with updated default headers.");

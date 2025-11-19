@@ -19,7 +19,7 @@ use crate::{
 #[async_trait]
 pub trait LocationApi {
     async fn get_locations(&mut self, load_from_cache: bool) -> Result<Vec<Location>>;
-    async fn move_location(&mut self, travel_mode: TravelMode, location: Location) -> Result<()>;
+    async fn move_location(&mut self, travel_mode: TravelMode, location: &Location) -> Result<()>;
 }
 
 #[async_trait]
@@ -94,9 +94,9 @@ impl LocationApi for IdleMMOClient {
     }
 
     #[tracing::instrument(skip(self, location, travel_mode))]
-    async fn move_location(&mut self, travel_mode: TravelMode, location: Location) -> Result<()> {
+    async fn move_location(&mut self, travel_mode: TravelMode, location: &Location) -> Result<()> {
         info!(location = %location.name, ?travel_mode, "Attempting to move to new location.");
-        let status_message = match travel_mode {
+        match travel_mode {
             TravelMode::Teleport => {
                 let character_gold_amount = self.cache.character_info.gold;
                 if character_gold_amount < location.teleport_cost {
@@ -122,9 +122,9 @@ impl LocationApi for IdleMMOClient {
                 self.update_current_data().await?;
 
                 if character_gold_amount != self.cache.character_info.gold {
-                    "Teleport successful".to_string()
+                    info!(location = %location.name, cost = location.teleport_cost, "Teleport successful");
                 } else {
-                    "You already at location".to_string()
+                    warn!(location = %location.name, "You already at location");
                 }
             }
             TravelMode::Walk => {
@@ -142,14 +142,10 @@ impl LocationApi for IdleMMOClient {
                     .send()
                     .await?;
                 let response_message_data = travel_http_response.json::<ResponseData>().await?;
-                response_message_data.message
+                info!("{}", response_message_data.message);
             }
-        };
+        }
 
-        info!(
-            location = %location.name,
-            "{}", status_message
-        );
         Ok(())
     }
 }

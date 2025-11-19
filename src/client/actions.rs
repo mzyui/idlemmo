@@ -5,7 +5,7 @@ use tracing::{debug, info};
 use crate::{
     client::{IdleMMOClient, LocationApi},
     error::{AppError, Result},
-    models::{Action, FilterBy, SkillConfig, SkillItem, SkillType, location::Location},
+    models::{SkillConfig, SkillData, action_model::{SkillType, ActiveAction}},
     parser::Parser,
     utils::{API_VERSION, find_best_skill, generate_obfuscated_data},
 };
@@ -14,14 +14,15 @@ use crate::{
 #[async_trait]
 pub trait ActionSkillApi {
     async fn start_skill(&mut self, config: SkillConfig) -> Result<()>;
-    async fn get_active_action(&self) -> Result<Option<Action>>;
+    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<SkillData>;
+    async fn get_active_action(&self) -> Result<Option<ActiveAction>>;
 }
 
 #[async_trait]
 impl ActionSkillApi for IdleMMOClient {
     #[tracing::instrument(skip_all)]
     async fn start_skill(&mut self, config: SkillConfig) -> Result<()> {
-        let mut available_locations = self.get_locations(true).await?;
+        let available_locations = self.get_locations(true).await?;
 
         let (selected_location, selected_skill_item) =
             find_best_skill(&available_locations, &config)
@@ -30,12 +31,10 @@ impl ActionSkillApi for IdleMMOClient {
         if self.cache.character_info.location_id != selected_location.id {
             self.move_location(
                 crate::models::location::TravelMode::Teleport,
-                selected_location.clone(),
+                selected_location,
             )
             .await?;
         }
-
-        dbg!(&selected_skill_item);
 
         let http_response = self
             .client
@@ -55,7 +54,6 @@ impl ActionSkillApi for IdleMMOClient {
             "v": API_VERSION
         });
 
-        dbg!(&request_payload);
         let http_response = self
             .client
             .post(start_skill_api_url)
@@ -66,8 +64,38 @@ impl ActionSkillApi for IdleMMOClient {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self, skill_type))]
+    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<SkillData> {
+        info!(skill_type = ?skill_type, "Fetching skill data.");
+        let http_response = self
+            .client
+            .get(format!("{}skills/view/{}", self.base_url, skill_type).to_lowercase())
+            .send()
+            .await?;
+        let response_html = http_response.text().await?;
+        let api_url = Parser::SkillsDataApiEndpoint.get_value(&response_html)?;
+        debug!(url = %api_url, skill_type = ?skill_type, "Calling API: Get Skill Data");
+
+        let http_response = self
+            .client
+            .post(api_url)
+            .json(&json!({
+                "filter": {}
+            }))
+            .send()
+            .await?;
+        let skill_data = http_response.json::<SkillData>().await?;
+        info!(
+            total_items = skill_data.items.len(),
+            items_gathered = %skill_data.metrics.items_gathered,
+            time_spent = %skill_data.metrics.time_spent,
+            total_experience = %skill_data.metrics.total_experience,
+            "Skill data retrieved.");
+        Ok(skill_data)
+    }
+
     #[tracing::instrument(skip(self))]
-    async fn get_active_action(&self) -> Result<Option<Action>> {
+    async fn get_active_action(&self) -> Result<Option<ActiveAction>> {
         let active_action_api_url = Parser::ActionActiveApiEndpoint.get_value(&self.cache.html)?;
         debug!(url = %active_action_api_url, "Calling API: Get Active Action");
         let http_api_response = self
@@ -85,9 +113,8 @@ impl ActionSkillApi for IdleMMOClient {
             info!("No active action found for current character.");
             Ok(None)
         } else {
-            let active_action = serde_json::from_value::<Action>(json_response_data)?;
-            info!(skill_type = ?active_action.skill_type,
-                item_name = ?active_action.item_name , "Active action found.");
+            let active_action = serde_json::from_value::<ActiveAction>(json_response_data)?;
+            info!(skill_type = ?active_action.kind, item = ?active_action.item , "Active action found.");
             Ok(Some(active_action))
         }
     }
