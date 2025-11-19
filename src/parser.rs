@@ -1,12 +1,8 @@
 use crate::lazy_regex;
 use html_escape::decode_html_entities;
-use once_cell::sync::OnceCell;
 use regex::Regex;
 
-use crate::{
-    error::{AppError, Result},
-    models::SkillType,
-};
+use crate::error::{AppError, Result};
 
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
@@ -49,7 +45,9 @@ impl Parser {
             }
             Self::ActionActiveApiEndpoint => lazy_regex!(r#"(https?.*?/action\\?/active[^'"]+)""#),
             Self::SkillsStartApiEndpoint => lazy_regex!(r#"(https?.*?/skills\\?/start[^'"]+)""#),
-            Self::SkillsDataApiEndpoint => lazy_regex!(r#"(https?.*?/skills\\?/data[^'"]+)""#),
+            Self::SkillsDataApiEndpoint => {
+                lazy_regex!(r#"data.endpoint.*?(https?.*?/skills\\?/data[^'"]+)""#)
+            }
         }
     }
 

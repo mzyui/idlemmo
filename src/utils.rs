@@ -2,7 +2,11 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STD;
 use once_cell::sync::OnceCell;
 use regex::Regex;
+use reqwest::Response;
+use serde::Deserialize;
+use serde_json::Value;
 
+use crate::error::{AppError, Result};
 use crate::models::location::Location;
 use crate::models::{FilterBy, SkillConfig, SkillItem};
 
@@ -15,6 +19,14 @@ macro_rules! lazy_regex {
             ::once_cell::sync::OnceCell::new();
         REGEX.get_or_init(|| ::regex::Regex::new($regex_str).unwrap())
     }};
+}
+
+pub(crate) async fn debug_deserialize<T: serde::de::DeserializeOwned>(
+    response: Response,
+) -> Result<T> {
+    let value = response.json::<Value>().await?;
+    dbg!(&value);
+    serde_json::from_value::<T>(value).map_err(AppError::SerdeJson)
 }
 
 pub fn generate_obfuscated_data(encryption_key_option: Option<&str>) -> String {

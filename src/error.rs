@@ -28,9 +28,6 @@ pub enum AppError {
     #[error("JSON serialization/deserialization error: {0}")]
     SerdeJson(#[from] serde_json::Error),
 
-    #[error("An unknown error occurred: {0}")]
-    Anyhow(#[from] anyhow::Error),
-
     #[error("Failed to convert cookie to string: {0}")]
     ToStr(#[from] reqwest::header::ToStrError),
 
@@ -48,6 +45,10 @@ pub enum AppError {
 
     #[error("Application error: {0}")]
     Application(String),
+
+    #[error("Serde Deserialization error: {0}")]
+    SerdeDe(String),
+
 }
 
 pub type Result<T> = std::result::Result<T, AppError>;
