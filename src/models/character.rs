@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use anyhow::Result;
+use crate::error::Result;
 use serde::{Deserialize, Serialize};
 
-use super::skill::SkillType;
+use super::action_model::SkillType;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CharacterInfo {

@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
-use super::{character::CharacterInfo, location::Location};
+use super::{character::CharacterInfo, location::Location, profile_model::Profile};
 
 #[derive(Default)]
 pub struct CachedData {
     pub locations: Vec<Location>,
-    pub character_info: CharacterInfo,
+    pub character_info: Profile,
     pub csrf_token: String,
     pub html: String,
 }

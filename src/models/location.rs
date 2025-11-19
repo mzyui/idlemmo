@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::{item::Item, skill::SkillItem};
+use super::{item::Item};
+use crate::models::{skill::SkillItem, action_model::SkillType};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub struct Location {
