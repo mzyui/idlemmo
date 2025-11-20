@@ -5,7 +5,7 @@ use tracing::{debug, info, warn};
 use crate::{
     config::Config,
     error::{AppError, Result},
-    models::Account,
+    models::user::Account,
 };
 
 #[derive(Clone, Debug)]
@@ -60,22 +60,20 @@ impl DbClient {
 
         let accounts: Vec<Account> = raw_accounts_data
             .into_iter()
-            .filter_map(
-                |raw_account_value| {
-                    let raw_account_value_for_log = raw_account_value.clone(); // Clone for logging only
-                    match serde_json::from_value::<Account>(raw_account_value) {
-                        Ok(account) => Some(account),
-                        Err(e) => {
-                            warn!(
-                                error = %e,
-                                raw_json_value = ?raw_account_value_for_log.to_string(),
-                                "Failed to deserialize user from raw value. Skipping this entry."
-                            );
-                            None
-                        }
+            .filter_map(|raw_account_value| {
+                let raw_account_value_for_log = raw_account_value.clone(); // Clone for logging only
+                match serde_json::from_value::<Account>(raw_account_value) {
+                    Ok(account) => Some(account),
+                    Err(e) => {
+                        warn!(
+                            error = %e,
+                            raw_json_value = ?raw_account_value_for_log.to_string(),
+                            "Failed to deserialize user from raw value. Skipping this entry."
+                        );
+                        None
                     }
-                },
-            )
+                }
+            })
             .collect();
 
         let parsed_accounts_count = accounts.len();

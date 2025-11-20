@@ -12,13 +12,12 @@ use requestty::{Answers, Question, question::Choice::DefaultSeparator};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{EnvFilter, fmt::Subscriber};
 
-use crate::models::action_model::SkillType;
+use crate::models::action::SkillType;
 use crate::{
     client::{
         AccountManagement, CharacterApi, IdleMMOClient, LocationApi, actions::ActionSkillApi,
     },
     error::Result,
-    models::SkillConfig,
 };
 
 #[tokio::main]
@@ -35,44 +34,24 @@ async fn main() -> Result<()> {
 }
 
 #[allow(unreachable_code)]
+async fn debug_test(client: &mut IdleMMOClient) -> Result<()> {
+    let accounts = client.get_account().await?;
+    let account = if accounts.is_empty() {
+        warn!("No accounts found. Please add an account first.");
+        return Ok(());
+    } else {
+        accounts[0].clone()
+    };
+
+    client.load_account(account).await?;
+    client.get_all_characters().await?;
+
+    Ok(())
+    //
+}
+
 async fn run() -> Result<()> {
     let mut client = IdleMMOClient::new()?;
-
-    if true {
-        let accounts = client.get_account().await?;
-        let account = if accounts.is_empty() {
-            warn!("No accounts found. Please add an account first.");
-            return Ok(());
-        } else {
-            accounts[0].clone()
-        };
-
-        client.load_account(account).await?;
-        dbg!(client.get_all_characters().await?);
-
-        return Ok(());
-        let chars = client.get_all_characters().await?;
-        let char = fastrand::choice(chars).unwrap();
-        client.switch_character(char).await?;
-
-        let loc = fastrand::choice(client.get_locations(false).await?).unwrap();
-        client
-            .move_location(crate::models::location::TravelMode::Teleport, &loc)
-            .await?;
-
-        dbg!(client.get_skill_data(&SkillType::Fishing).await?);
-
-        client
-            .start_skill(SkillConfig {
-                skill_type: SkillType::Mining,
-                ..Default::default()
-            })
-            .await?;
-        // &client.cache.character_info;
-
-        return Ok(());
-        //
-    }
 
     eprintln!();
     loop {
@@ -90,6 +69,7 @@ async fn run() -> Result<()> {
         }
         eprintln!();
     }
+    eprintln!();
 
     Ok(())
 }
@@ -114,7 +94,7 @@ fn make_questions() -> Vec<Question<'static>> {
                     .and_then(|answer| answer.as_list_item())
                     .is_some_and(|item| item.index == 1)
             })
-            .validate_on_key(|v: &str, _: &Answers| v.contains('@'))
+            .validate_on_key(|v: &str, _: &Answers| v.contains('@') && v.contains("."))
             .build(),
         Question::password("password")
             .message("Password:")
@@ -137,7 +117,7 @@ async fn handle_choice(
     match choice_idx {
         0 => {
             info!("Starting bot...");
-            load_all_accounts(client).await?;
+            debug_test(client).await?;
         }
         1 => {
             let user_email = resps
