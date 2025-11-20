@@ -3,7 +3,17 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::{collections::BTreeMap, fmt};
 
-use crate::models::action_model::SkillType;
+use crate::models::action::SkillType;
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct Character {
+    pub id: u64,
+    pub name: String,
+    pub change_url: String,
+    pub class_name: String,
+    pub level: u64,
+    pub is_current: bool,
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Profile {

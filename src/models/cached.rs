@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use super::{character::CharacterInfo, location::Location, profile_model::Profile};
+use super::{location::Location, profile::Profile};
 
 #[derive(Default)]
 pub struct CachedData {
