@@ -6,7 +6,10 @@ use tracing::{debug, info};
 use crate::{
     client::IdleMMOClient,
     error::Result,
-    models::{Character, CharacterInfo, action_model::SkillType, profile_model::Profile},
+    models::{
+        action::SkillType,
+        profile::{Character, Profile},
+    },
     parser::Parser,
 };
 
@@ -62,7 +65,6 @@ impl CharacterApi for IdleMMOClient {
             .send()
             .await?;
         let raw_json_response = http_api_response.json::<Value>().await?;
-        dbg!(&raw_json_response);
 
         let mut character_list = vec![];
         if let Some(json_characters_array) = raw_json_response
@@ -88,10 +90,7 @@ impl CharacterApi for IdleMMOClient {
         }
 
         self.client
-            .post(format!(
-                "{}user/character/switch/{}",
-                self.base_url, character_to_switch.id
-            ))
+            .post(character_to_switch.change_url)
             .form(&json!({
                 "_token": self.cache.csrf_token,
                 "return_to_current_page": false

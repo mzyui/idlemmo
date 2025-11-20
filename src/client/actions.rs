@@ -5,7 +5,11 @@ use tracing::{debug, info};
 use crate::{
     client::{IdleMMOClient, LocationApi},
     error::{AppError, Result},
-    models::{SkillConfig, SkillData, action_model::{SkillType, ActiveAction}},
+    models::{
+        action::{ActiveAction, SkillType},
+        config::SkillConfig,
+        location::TravelMode,
+    },
     parser::Parser,
     utils::{API_VERSION, find_best_skill, generate_obfuscated_data},
 };
@@ -14,7 +18,7 @@ use crate::{
 #[async_trait]
 pub trait ActionSkillApi {
     async fn start_skill(&mut self, config: SkillConfig) -> Result<()>;
-    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<SkillData>;
+    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<Value>;
     async fn get_active_action(&self) -> Result<Option<ActiveAction>>;
 }
 
@@ -29,11 +33,8 @@ impl ActionSkillApi for IdleMMOClient {
                 .ok_or_else(|| AppError::Application("No suitable skill found".to_string()))?;
 
         if self.cache.character_info.location_id != selected_location.id {
-            self.move_location(
-                crate::models::location::TravelMode::Teleport,
-                selected_location,
-            )
-            .await?;
+            self.move_location(TravelMode::Teleport, selected_location)
+                .await?;
         }
 
         let http_response = self
@@ -65,7 +66,7 @@ impl ActionSkillApi for IdleMMOClient {
     }
 
     #[tracing::instrument(skip(self, skill_type))]
-    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<SkillData> {
+    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<Value> {
         info!(skill_type = ?skill_type, "Fetching skill data.");
         let http_response = self
             .client
@@ -84,13 +85,14 @@ impl ActionSkillApi for IdleMMOClient {
             }))
             .send()
             .await?;
-        let skill_data = http_response.json::<SkillData>().await?;
-        info!(
-            total_items = skill_data.items.len(),
-            items_gathered = %skill_data.metrics.items_gathered,
-            time_spent = %skill_data.metrics.time_spent,
-            total_experience = %skill_data.metrics.total_experience,
-            "Skill data retrieved.");
+        let skill_data = http_response.json::<Value>().await?;
+
+        // info!(
+        //     total_items = skill_data.items.len(),
+        //     items_gathered = %skill_data.metrics.items_gathered,
+        //     time_spent = %skill_data.metrics.time_spent,
+        //     total_experience = %skill_data.metrics.total_experience,
+        //     "Skill data retrieved.");
         Ok(skill_data)
     }
 

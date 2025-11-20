@@ -62,6 +62,7 @@ impl LocationApi for IdleMMOClient {
                     .await?;
 
                 let mut current_location_details = quick_view_response.json::<Location>().await?;
+
                 current_location_details.enemies.retain(|current_enemy| {
                     current_enemy.level >= self.cache.character_info.combat_level
                 });
@@ -72,7 +73,7 @@ impl LocationApi for IdleMMOClient {
                             .cache
                             .character_info
                             .skill_level
-                            .entry(current_skill.skill_type.clone())
+                            .entry(current_skill.skill.clone())
                             .or_default();
                         *character_skill_level >= current_skill.level_required
                     });
@@ -82,8 +83,9 @@ impl LocationApi for IdleMMOClient {
                     filtered_locations.push(current_location_details);
                 }
             }
-            filtered_locations
-                .sort_by_key(|location_by_distance| Reverse(location_by_distance.distance));
+            filtered_locations.sort_by_key(|location_by_distance: &Location| {
+                Reverse(location_by_distance.distance)
+            });
             self.cache.locations.clone_from(&filtered_locations);
         }
         info!(

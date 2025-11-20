@@ -10,7 +10,7 @@ use tracing::{debug, info, warn};
 use crate::{
     client::{IdleMMOClient, LocationApi},
     error::Result,
-    models::Account,
+    models::user::Account,
     parser::Parser,
     utils::obfuscate_email,
 };
@@ -94,7 +94,6 @@ impl AccountManagement for IdleMMOClient {
             .send()
             .await?;
 
-        let mut is_session_valid = false;
         if let Some(account_name) = http_response
             .url()
             .as_ref()
@@ -103,11 +102,8 @@ impl AccountManagement for IdleMMOClient {
             .next_back()
         {
             info!(%account_name, "Account loaded. Welcome");
-            is_session_valid =
-                self.update_current_data().await.is_ok() && self.get_locations(false).await.is_ok();
-        }
-
-        if !is_session_valid {
+            self.update_current_data().await?;
+        } else {
             warn!("Session cookie appears invalid. Removing user from database.");
             self.db_client.remove_user(account_to_load.id).await?;
         }
