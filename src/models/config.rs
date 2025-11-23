@@ -1,4 +1,6 @@
 use crate::error::{AppError, Result};
+use crate::models::game_action::SkillType;
+use crate::models::item::FilterBy;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -21,4 +23,12 @@ impl Config {
             supabase_key,
         })
     }
+}
+
+#[derive(Debug, Default)]
+pub struct SkillConfig {
+    pub skill_type: SkillType,
+    pub essence_crystal: u64,
+    pub auto_purchase: bool,
+    pub filter_by: FilterBy,
 }

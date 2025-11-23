@@ -8,6 +8,18 @@ use crate::{
     utils::serde::{deserialize_duration, deserialize_requirements, deserialize_skill_type},
 };
 
+#[derive(Debug, Default)]
+pub enum FilterBy {
+    #[default]
+    HighestLevelRequired,
+    LowestLevelRequired,
+    // FastestTime,
+    // LongestTime,
+    // HighestExperience,
+    // LowestExperience,
+    ItemName(String),
+}
+
 #[derive(Debug, Deserialize)]
 pub struct SkillData {
     pub items: Vec<Item>,
@@ -140,4 +152,3 @@ pub struct InstantEffect {
     pub health: u64,
     pub hunger: u64,
 }
-
