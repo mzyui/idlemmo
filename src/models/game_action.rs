@@ -1,13 +1,16 @@
-use crate::error::{AppError, Result};
-use crate::models::metadata::MetaData;
 use chrono::{DateTime, Duration, Utc};
 use enum_iterator::Sequence;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use url::Url;
+
+use crate::error::{AppError, Result};
+use crate::utils::serde::{
+    deserialize_duration, deserialize_optional_duration, deserialize_skill_type,
+};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -19,8 +22,8 @@ pub struct ActiveAction {
     #[serde(default)]
     pub max_quantity: u64,
     pub current_progress: Option<CurrentProgress>,
-    pub metadata: MetaData,
-    #[serde(default)]
+    pub metadata: ActionMetaData,
+    #[serde(default, deserialize_with = "deserialize_duration")]
     pub expires_in: Duration,
     pub expires_at: DateTime<Utc>,
     #[serde(skip_serializing)]
@@ -46,17 +49,16 @@ impl<'de> Deserialize<'de> for ActiveAction {
             max_quantity: u64,
             current_progress: Option<CurrentProgress>,
             #[serde(rename = "meta_data")]
-            metadata: MetaData,
-            #[serde(default, deserialize_with = "seconds_to_duration")]
+            metadata: ActionMetaData,
+            #[serde(default, deserialize_with = "deserialize_duration")]
             expires_in: Duration,
-            #[serde(default, deserialize_with = "seconds_or_millis_to_duration")]
+            #[serde(default, deserialize_with = "deserialize_duration")]
             wait_length: Duration,
             #[serde(flatten)]
             extra: Option<Value>,
         }
 
         let raw = Raw::deserialize(deserializer)?;
-
         let expires_at = Utc::now()
             .checked_add_signed(raw.expires_in)
             .unwrap_or_default();
@@ -89,7 +91,7 @@ pub struct Item {
 #[serde(rename_all = "snake_case")]
 pub struct CurrentProgress {
     pub percentage: f64,
-    #[serde(default, deserialize_with = "seconds_to_duration")]
+    #[serde(default, deserialize_with = "deserialize_duration")]
     pub time_remaining_until_next_loop: Duration,
 }
 
@@ -123,13 +125,16 @@ impl FromStr for SkillType {
             "cooking" => Ok(SkillType::Cooking),
             "forge" => Ok(SkillType::Forge),
             "meditation" => Ok(SkillType::Meditation),
-            _ => Err(AppError::Parse(format!("Failed to parse skill type: {}", input_string))),
+            _ => Err(AppError::Parse(format!(
+                "Failed to parse skill type: {}",
+                input_string
+            ))),
         }
     }
 }
 
 impl fmt::Display for SkillType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             SkillType::None => write!(f, "none"),
             SkillType::Woodcutting => write!(f, "woodcutting"),
@@ -145,74 +150,62 @@ impl fmt::Display for SkillType {
     }
 }
 
-
-/// Deserialize tolerant: accepts lowercase, UPPERCASE, Capitalized, returns Other(...) if unknown
-fn deserialize_skill_type<'de, D>(deserializer: D) -> std::result::Result<SkillType, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s_opt: Option<String> = Option::deserialize(deserializer)?;
-    match s_opt {
-        Some(raw) => {
-            let norm = raw.trim().to_lowercase();
-            let kt = match norm.as_str() {
-                "woodcutting" => SkillType::Woodcutting,
-                "mining" => SkillType::Mining,
-                "fishing" => SkillType::Fishing,
-                "alchemy" => SkillType::Alchemy,
-                "smelting" => SkillType::Smelting,
-                "cooking" => SkillType::Cooking,
-                "forge" => SkillType::Forge,
-                "meditation" => SkillType::Meditation,
-                other => SkillType::Other(other.to_string()),
-            };
-            Ok(kt)
-        }
-        None => Ok(SkillType::None),
-    }
+// --- Structs from src/models/metadata.rs ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SkillMetaData {
+    #[serde(default)]
+    pub kind: String,
+    pub value: u64,
+    #[serde(deserialize_with = "deserialize_duration", default)]
+    pub length: Duration,
+    #[serde(deserialize_with = "deserialize_skill_type")]
+    pub target: SkillType,
+    pub attribute: String,
+    pub value_type: String,
+    #[serde(default)]
+    pub available_uses: u64,
 }
 
-/// Convert Option<number> (seconds or integer) -> Option<chrono::Duration>
-/// Accepts integer or float seconds; returns None if JSON null/missing.
-fn seconds_to_duration<'de, D>(deserializer: D) -> std::result::Result<Duration, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    // accept numbers or null
-    let opt: Option<serde_json::Number> = Option::deserialize(deserializer)?;
-    if let Some(num) = opt {
-        // try integer or float
-        if let Some(i) = num.as_i64() {
-            return Ok(Duration::seconds(i));
-        } else if let Some(f) = num.as_f64() {
-            // convert fractional seconds to milliseconds
-            let ms = (f * 1000.0).round() as i64;
-            return Ok(Duration::milliseconds(ms));
-        }
-    }
-    Err(de::Error::custom("invalid numeric value for duration"))
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ActionMetaData {
+    pub exp_per_second: f64,
+    pub exp_per_enemy: Option<f64>,
+    pub total_bonus_enemies: Option<u64>,
+    pub enemy_queue: Option<EnemyQueue>,
+    pub bonus_enemy: Option<BonusEnemy>,
 }
 
-fn seconds_or_millis_to_duration<'de, D>(deserializer: D) -> std::result::Result<Duration, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let opt: Option<serde_json::Number> = Option::deserialize(deserializer)?;
-    if let Some(num) = opt {
-        if let Some(i) = num.as_i64() {
-            return if i.abs() >= 10_000 {
-                Ok(Duration::milliseconds(i))
-            } else {
-                Ok(Duration::seconds(i))
-            };
-        } else if let Some(f) = num.as_f64() {
-            return if f.abs() >= 10_000.0 {
-                Ok(Duration::milliseconds(f.round() as i64))
-            } else {
-                let ms = (f * 1000.0).round() as i64;
-                Ok(Duration::milliseconds(ms))
-            };
-        }
-    }
-    Err(de::Error::custom("invalid numeric value for duration"))
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EnemyQueue {
+    pub preview: Vec<EnemyPreview>,
+    pub offset: Option<u64>,
+    pub total: Option<u64>,
+    pub chunk_size: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EnemyPreview {
+    pub enemy_id: u64,
+    pub name: String,
+    pub image_url: String,
+    pub position: u64,
+    pub is_current: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BonusEnemy {
+    pub active: bool,
+    pub id: u64,
+    #[serde(deserialize_with = "deserialize_optional_duration")]
+    pub enemy_available_in: Option<Duration>,
+    #[serde(deserialize_with = "deserialize_optional_duration")]
+    pub enemy_shown_for: Option<Duration>,
+    #[serde(deserialize_with = "deserialize_optional_duration")]
+    pub wait_between_ui_cycles: Option<Duration>,
+    #[serde(deserialize_with = "deserialize_optional_duration")]
+    pub expires_in: Option<Duration>,
+    pub exp_per_enemy: Option<u64>,
+    pub length_per_power_hunt: Option<u64>,
+    #[serde(deserialize_with = "deserialize_optional_duration")]
+    pub cooldown_expires_in: Option<Duration>,
 }

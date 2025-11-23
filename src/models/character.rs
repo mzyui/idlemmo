@@ -3,16 +3,33 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::{collections::BTreeMap, fmt};
 
-use crate::models::action::SkillType;
+use crate::models::game_action::SkillType;
+use crate::utils::serde::{deserialize_name_from_obj, deserialize_rfc3339};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Character {
     pub id: u64,
     pub name: String,
     pub change_url: String,
-    pub class_name: String,
+    pub class_name: ClassName,
     pub level: u64,
     pub is_current: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum ClassName {
+    #[default]
+    Warrior,
+    Shadowblade,
+    Ranger,
+    Miner,
+    Angler,
+    Chef,
+    Lumberjack,
+    Smelter,
+    Banished,
+    Forsaken,
+    Cursed,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -58,18 +75,18 @@ pub struct Party {
     pub name: String,
     pub pending_invites: Vec<PendingInvite>,
     pub permissions: Permissions,
-    #[serde(deserialize_with = "de_datetime_from_rfc3339")]
+    #[serde(deserialize_with = "deserialize_rfc3339")]
     pub created_at: DateTime<FixedOffset>,
-    #[serde(deserialize_with = "de_datetime_from_rfc3339")]
+    #[serde(deserialize_with = "deserialize_rfc3339")]
     pub updated_at: DateTime<FixedOffset>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PendingInvite {
     id: u64,
-    #[serde(rename = "character", deserialize_with = "extract_name")]
+    #[serde(rename = "character", deserialize_with = "deserialize_name_from_obj")]
     name: String,
-    #[serde(deserialize_with = "de_datetime_from_rfc3339")]
+    #[serde(deserialize_with = "deserialize_rfc3339")]
     pub created_at: DateTime<FixedOffset>,
 }
 
@@ -83,7 +100,7 @@ pub struct Leader {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Member {
     pub id: u64,
-    #[serde(deserialize_with = "de_datetime_from_rfc3339")]
+    #[serde(deserialize_with = "deserialize_rfc3339")]
     pub joined_at: DateTime<FixedOffset>,
     pub location_id: u64,
     pub name: String,
@@ -111,39 +128,4 @@ pub struct Permissions {
     pub invite_create: bool,
     pub invite_delete: bool,
     pub leave: bool,
-}
-
-fn de_datetime_from_rfc3339<'de, D>(deserializer: D) -> Result<DateTime<FixedOffset>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    use serde::de::Error as DeError;
-    let s = String::deserialize(deserializer)?;
-    DateTime::parse_from_rfc3339(&s)
-        .map_err(|e| DeError::custom(format!("invalid datetime: {}", e)))
-}
-
-fn extract_name<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    use serde::de::Error as DeError;
-    let value = Value::deserialize(deserializer)?;
-    if let Some(s) = value
-        .as_object()
-        .and_then(|obj| obj.get("name").and_then(|v| v.as_str()))
-    {
-        return Ok(s.to_string());
-    }
-    Err(D::Error::custom("Cannot extract name"))
-}
-
-impl fmt::Display for Profile {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Profile(id={}, name={}, level={}, gold={})",
-            self.id, self.name, self.combat_level, self.gold
-        )
-    }
 }

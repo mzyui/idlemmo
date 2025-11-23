@@ -1,11 +1,11 @@
-// location.rs
+// world.rs
 use chrono::Duration;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Result;
 use std::fmt;
 
-use crate::models::action::SkillType;
-use crate::utils::duration_from_any;
+use crate::models::game_action::SkillType;
+use crate::utils::serde::deserialize_duration;
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub struct Location {
     pub distance: u64,
     pub dungeons: Vec<Dungeon>,
     pub enemies: Vec<Entity>,
-    #[serde(deserialize_with = "duration_from_any")]
+    #[serde(deserialize_with = "deserialize_duration")]
     pub length: Duration,
     pub points_of_interest: PointsOfInterest,
     pub skill_items: Vec<SkillItem>,
