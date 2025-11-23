@@ -8,16 +8,14 @@ use crate::{
     utils::serde::{deserialize_duration, deserialize_requirements, deserialize_skill_type},
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub enum FilterBy {
     #[default]
     HighestLevelRequired,
     LowestLevelRequired,
-    // FastestTime,
-    // LongestTime,
-    // HighestExperience,
-    // LowestExperience,
     ItemName(String),
+    ItemNameContains(String),
+    Closest,
 }
 
 #[derive(Debug, Deserialize)]

@@ -8,9 +8,18 @@ use std::str::FromStr;
 use url::Url;
 
 use crate::error::{AppError, Result};
+use crate::models::world::{Location, SkillItem};
 use crate::utils::serde::{
     deserialize_duration, deserialize_optional_duration, deserialize_skill_type,
 };
+
+#[derive(Debug)]
+pub struct SkillRecommendation<'a> {
+    pub skill: SkillType,
+    pub level: u64,
+    pub location: &'a Location,
+    pub item: &'a SkillItem,
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
