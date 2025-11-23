@@ -8,7 +8,9 @@ use requestty::{Answers, Question, question::Choice::DefaultSeparator};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{EnvFilter, fmt::Subscriber};
 
+use crate::models::config::SkillConfig;
 use crate::models::game_action::SkillType;
+use crate::models::item::FilterBy;
 use crate::{
     client::{
         AccountManagement, CharacterApi, IdleMMOClient, LocationApi, actions::ActionSkillApi,
@@ -32,14 +34,7 @@ async fn main() -> Result<()> {
 #[allow(unreachable_code)]
 async fn debug_test(client: &mut IdleMMOClient) -> Result<()> {
     let accounts = client.get_account().await?;
-    let account = if accounts.is_empty() {
-        warn!("No accounts found. Please add an account first.");
-        return Ok(());
-    } else {
-        accounts[0].clone()
-    };
-
-    client.load_account(account).await?;
+    client.load_account(accounts[0].clone()).await?;
 
     for skill in [
         SkillType::Woodcutting,
@@ -50,11 +45,18 @@ async fn debug_test(client: &mut IdleMMOClient) -> Result<()> {
         SkillType::Cooking,
         SkillType::Forge,
     ] {
-        let data = client.get_skill_data(&skill).await?;
-        dbg!(data);
+        // let data = client.get_skill_data(&skill).await?;
+        // dbg!(data);
+        client
+            .start_skill(SkillConfig {
+                skill_type: skill.clone(),
+                filter_by: FilterBy::HighestLevelRequired,
+                ..Default::default()
+            })
+            .await?;
     }
+
     Ok(())
-    //
 }
 
 async fn run() -> Result<()> {
