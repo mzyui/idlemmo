@@ -57,31 +57,28 @@ impl LocationApi for IdleMMOClient {
                     .send()
                     .await?;
 
-                let mut current_location_details = quick_view_response.json::<Location>().await?;
+                let current_location_details = quick_view_response.json::<Location>().await?;
+                filtered_locations.push(current_location_details);
 
-                current_location_details.enemies.retain(|current_enemy| {
-                    current_enemy.level >= self.state.character_info.combat_level
-                });
-                current_location_details
-                    .skill_items
-                    .retain(|current_skill| {
-                        let character_skill_level = self
-                            .state
-                            .character_info
-                            .skill_level
-                            .entry(current_skill.skill.clone())
-                            .or_default();
-                        *character_skill_level >= current_skill.level_required
-                    });
-                let enemies_empty = current_location_details.enemies.is_empty();
-                let skill_items_empty = current_location_details.skill_items.is_empty();
-                if !current_location_details.disabled && (!enemies_empty || !skill_items_empty) {
-                    filtered_locations.push(current_location_details);
-                }
+                // current_location_details.enemies.retain(|current_enemy| {
+                //     current_enemy.level >= self.state.character_info.combat_level
+                // });
+                // current_location_details
+                //     .skill_items
+                //     .retain(|current_skill| {
+                //         let character_skill_level = self
+                //             .state
+                //             .character_info
+                //             .skill_level
+                //             .entry(current_skill.skill.clone())
+                //             .or_default();
+                //         *character_skill_level >= current_skill.level_required
+                //     });
+                // let enemies_empty = current_location_details.enemies.is_empty();
+                // let skill_items_empty = current_location_details.skill_items.is_empty();
+                // if !current_location_details.disabled && (!enemies_empty || !skill_items_empty) {
+                // }
             }
-            filtered_locations.sort_by_key(|location_by_distance: &Location| {
-                Reverse(location_by_distance.distance)
-            });
             self.state.locations.clone_from(&filtered_locations);
         }
         info!(

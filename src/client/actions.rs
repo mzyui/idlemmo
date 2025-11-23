@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use tracing::{debug, info};
 
 use crate::{
-    client::{IdleMMOClient, LocationApi},
+    client::{CharacterApi, IdleMMOClient, LocationApi},
     error::{AppError, Result},
     models::{
         config::SkillConfig,
@@ -12,7 +12,8 @@ use crate::{
         world::TravelMode,
     },
     utils::{
-        API_VERSION, obfuscation::generate_obfuscated_data, parser::Parser, skills::find_best_skill,
+        API_VERSION, obfuscation::generate_obfuscated_data, parser::Parser,
+        skills::find_item_for_skill,
     },
 };
 
@@ -28,42 +29,55 @@ pub trait ActionSkillApi {
 impl ActionSkillApi for IdleMMOClient {
     #[tracing::instrument(skip_all)]
     async fn start_skill(&mut self, config: SkillConfig) -> Result<()> {
-        let available_locations = self.get_locations(true).await?;
+        let locations = self.get_locations(true).await?;
+        let profile = self.get_character_information().await?;
 
-        let (selected_location, selected_skill_item) =
-            find_best_skill(&available_locations, &config)
-                .ok_or_else(|| AppError::Application("No suitable skill found".to_string()))?;
-
-        if self.state.character_info.location_id != selected_location.id {
-            self.move_location(TravelMode::Teleport, selected_location)
-                .await?;
+        if let Some((location, item)) = find_item_for_skill(&profile, &locations, &config) {
+            dbg!(
+                item,
+                profile.skill_level[&config.skill_type],
+                &location.name
+            );
+        } else {
+            dbg!(profile.skill_level[&config.skill_type], config.skill_type);
         }
 
-        let http_response = self
-            .client
-            .get(format!("{}skills/view/{}", self.base_url, config.skill_type).to_lowercase())
-            .send()
-            .await?;
-        let response_html = http_response.text().await?;
-        let start_skill_api_url = Parser::SkillsStartApiEndpoint.get_value(&response_html)?;
+        // let (selected_location, selected_skill_item) =
+        //     find_best_skill(&available_locations, &config)
+        //         .ok_or_else(|| AppError::Application("No suitable skill found".to_string()))?;
+        //
+        // if self.state.character_info.location_id != selected_location.id {
+        //     self.move_location(TravelMode::Teleport, selected_location)
+        //         .await?;
+        // }
+        //
+        // dbg!(selected_skill_item, selected_location);
 
-        let request_payload = json!({
-            "skill_item_id": selected_skill_item.id,
-            "quantity": 1,
-            "essence_crystal": config.essence_crystal,
-            "auto_purchase": config.auto_purchase,
-            "ts2mic5ytx": generate_obfuscated_data(None),
-            "qty6bx4peh": generate_obfuscated_data(None),
-            "v": API_VERSION
-        });
-
-        let http_response = self
-            .client
-            .post(start_skill_api_url)
-            .json(&request_payload)
-            .send()
-            .await?;
-        dbg!(&http_response.text().await?[..100]);
+        // let http_response = self
+        //     .client
+        //     .get(format!("{}skills/view/{}", self.base_url, config.skill_type).to_lowercase())
+        //     .send()
+        //     .await?;
+        // let response_html = http_response.text().await?;
+        // let start_skill_api_url = Parser::SkillsStartApiEndpoint.get_value(&response_html)?;
+        //
+        // let request_payload = json!({
+        //     "skill_item_id": selected_skill_item.id,
+        //     "quantity": 1,
+        //     "essence_crystal": config.essence_crystal,
+        //     "auto_purchase": config.auto_purchase,
+        //     "ts2mic5ytx": generate_obfuscated_data(None),
+        //     "qty6bx4peh": generate_obfuscated_data(None),
+        //     "v": API_VERSION
+        // });
+        //
+        // let http_response = self
+        //     .client
+        //     .post(start_skill_api_url)
+        //     .json(&request_payload)
+        //     .send()
+        //     .await?;
+        // dbg!(&http_response.text().await?[..100]);
         Ok(())
     }
 
