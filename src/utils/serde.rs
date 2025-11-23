@@ -109,7 +109,7 @@ fn parse_dhms(input: &str) -> Option<Duration> {
             _ => return None, // ada unit yang gak dikenal
         };
 
-        total = total + part;
+        total += part;
     }
 
     if negative {

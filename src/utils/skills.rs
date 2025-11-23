@@ -1,6 +1,7 @@
-use crate::{
-    config::{FilterBy, SkillConfig},
-    models::world::{Location, SkillItem},
+use crate::models::{
+    config::SkillConfig,
+    item::FilterBy,
+    world::{Location, SkillItem},
 };
 
 fn find_best_skill_for_location<'a>(
