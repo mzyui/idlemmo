@@ -12,7 +12,7 @@ use requestty::{Answers, Question, question::Choice::DefaultSeparator};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{EnvFilter, fmt::Subscriber};
 
-use crate::models::action::SkillType;
+use crate::models::game_action::SkillType;
 use crate::{
     client::{
         AccountManagement, CharacterApi, IdleMMOClient, LocationApi, actions::ActionSkillApi,
@@ -44,14 +44,27 @@ async fn debug_test(client: &mut IdleMMOClient) -> Result<()> {
     };
 
     client.load_account(account).await?;
-    client.get_all_characters().await?;
 
+    for skill in [
+        SkillType::Woodcutting,
+        SkillType::Mining,
+        SkillType::Fishing,
+        SkillType::Alchemy,
+        SkillType::Smelting,
+        SkillType::Cooking,
+        SkillType::Forge,
+    ] {
+        let data = client.get_skill_data(&skill).await?;
+        dbg!(data);
+    }
     Ok(())
     //
 }
 
 async fn run() -> Result<()> {
     let mut client = IdleMMOClient::new()?;
+
+    return debug_test(&mut client).await;
 
     eprintln!();
     loop {

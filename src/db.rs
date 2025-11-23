@@ -3,9 +3,8 @@ use supabase_rs::SupabaseClient;
 use tracing::{debug, info, warn};
 
 use crate::{
-    config::Config,
     error::{AppError, Result},
-    models::user::Account,
+    models::{auth::Account, config::Config},
 };
 
 #[derive(Clone, Debug)]
