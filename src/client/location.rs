@@ -75,7 +75,7 @@ impl LocationApi for IdleMMOClient {
                     });
                 let enemies_empty = current_location_details.enemies.is_empty();
                 let skill_items_empty = current_location_details.skill_items.is_empty();
-                if !enemies_empty || !skill_items_empty {
+                if !current_location_details.disabled && (!enemies_empty || !skill_items_empty) {
                     filtered_locations.push(current_location_details);
                 }
             }
