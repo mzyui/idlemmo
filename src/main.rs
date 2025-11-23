@@ -1,11 +1,7 @@
 #![allow(unused, dead_code)]
 mod client;
-mod config;
-mod db;
 mod error;
 mod models;
-mod parser;
-
 mod utils;
 
 use requestty::{Answers, Question, question::Choice::DefaultSeparator};
