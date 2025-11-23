@@ -8,8 +8,7 @@ use crate::{
     client::IdleMMOClient,
     error::Result,
     models::world::{Location, TravelMode},
-    parser::Parser,
-    utils::{API_VERSION, obfuscation::generate_obfuscated_data},
+    utils::{API_VERSION, obfuscation::generate_obfuscated_data, parser::Parser},
 };
 
 #[allow(dead_code)]

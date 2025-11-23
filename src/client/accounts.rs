@@ -11,8 +11,7 @@ use crate::{
     client::{IdleMMOClient, LocationApi},
     error::Result,
     models::auth::Account,
-    parser::Parser,
-    utils::obfuscation::obfuscate_email,
+    utils::{obfuscation::obfuscate_email, parser::Parser},
 };
 
 #[allow(dead_code)]

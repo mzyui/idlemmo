@@ -9,10 +9,9 @@ use reqwest::{
 use tracing::{debug, info, warn};
 
 use crate::{
-    db::DbClient,
     error::Result,
     models::{config::Config, state::State},
-    parser::Parser,
+    utils::{database::DbClient, parser::Parser},
 };
 
 pub mod accounts;

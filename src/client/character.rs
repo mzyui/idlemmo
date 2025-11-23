@@ -10,7 +10,7 @@ use crate::{
         character::{Character, Profile},
         game_action::SkillType,
     },
-    parser::Parser,
+    utils::parser::Parser,
 };
 
 #[allow(dead_code)]

@@ -4,15 +4,16 @@ use tracing::{debug, info};
 
 use crate::{
     client::{IdleMMOClient, LocationApi},
-    config::SkillConfig,
     error::{AppError, Result},
     models::{
+        config::SkillConfig,
         game_action::{ActiveAction, SkillType},
         item::SkillData,
         world::TravelMode,
     },
-    parser::Parser,
-    utils::{API_VERSION, obfuscation::generate_obfuscated_data, skills::find_best_skill},
+    utils::{
+        API_VERSION, obfuscation::generate_obfuscated_data, parser::Parser, skills::find_best_skill,
+    },
 };
 
 #[allow(dead_code)]
