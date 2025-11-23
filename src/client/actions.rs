@@ -4,21 +4,22 @@ use tracing::{debug, info};
 
 use crate::{
     client::{IdleMMOClient, LocationApi},
+    config::SkillConfig,
     error::{AppError, Result},
     models::{
-        action::{ActiveAction, SkillType},
-        config::SkillConfig,
-        location::TravelMode,
+        game_action::{ActiveAction, SkillType},
+        item::SkillData,
+        world::TravelMode,
     },
     parser::Parser,
-    utils::{API_VERSION, find_best_skill, generate_obfuscated_data},
+    utils::{API_VERSION, obfuscation::generate_obfuscated_data, skills::find_best_skill},
 };
 
 #[allow(dead_code)]
 #[async_trait]
 pub trait ActionSkillApi {
     async fn start_skill(&mut self, config: SkillConfig) -> Result<()>;
-    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<Value>;
+    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<SkillData>;
     async fn get_active_action(&self) -> Result<Option<ActiveAction>>;
 }
 
@@ -32,7 +33,7 @@ impl ActionSkillApi for IdleMMOClient {
             find_best_skill(&available_locations, &config)
                 .ok_or_else(|| AppError::Application("No suitable skill found".to_string()))?;
 
-        if self.cache.character_info.location_id != selected_location.id {
+        if self.state.character_info.location_id != selected_location.id {
             self.move_location(TravelMode::Teleport, selected_location)
                 .await?;
         }
@@ -66,7 +67,7 @@ impl ActionSkillApi for IdleMMOClient {
     }
 
     #[tracing::instrument(skip(self, skill_type))]
-    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<Value> {
+    async fn get_skill_data(&self, skill_type: &SkillType) -> Result<SkillData> {
         info!(skill_type = ?skill_type, "Fetching skill data.");
         let http_response = self
             .client
@@ -85,26 +86,25 @@ impl ActionSkillApi for IdleMMOClient {
             }))
             .send()
             .await?;
-        let skill_data = http_response.json::<Value>().await?;
-
-        // info!(
-        //     total_items = skill_data.items.len(),
-        //     items_gathered = %skill_data.metrics.items_gathered,
-        //     time_spent = %skill_data.metrics.time_spent,
-        //     total_experience = %skill_data.metrics.total_experience,
-        //     "Skill data retrieved.");
+        let skill_data = http_response.json::<SkillData>().await?;
+        info!(
+            total_items = skill_data.items.len(),
+            items_gathered = %skill_data.metrics.items_gathered,
+            time_spent = %skill_data.metrics.time_spent,
+            total_experience = %skill_data.metrics.total_experience,
+            "Skill data retrieved.");
         Ok(skill_data)
     }
 
     #[tracing::instrument(skip(self))]
     async fn get_active_action(&self) -> Result<Option<ActiveAction>> {
-        let active_action_api_url = Parser::ActionActiveApiEndpoint.get_value(&self.cache.html)?;
+        let active_action_api_url = Parser::ActionActiveApiEndpoint.get_value(&self.state.html)?;
         debug!(url = %active_action_api_url, "Calling API: Get Active Action");
         let http_api_response = self
             .client
             .post(&active_action_api_url)
             .json(&json!({
-                "character_id": self.cache.character_info.id,
+                "character_id": self.state.character_info.id,
                 "v": API_VERSION
             }))
             .send()

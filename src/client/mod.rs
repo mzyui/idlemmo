@@ -9,7 +9,10 @@ use reqwest::{
 use tracing::{debug, info, warn};
 
 use crate::{
-    config::Config, db::DbClient, error::Result, models::cached::CachedData, parser::Parser,
+    db::DbClient,
+    error::Result,
+    models::{config::Config, state::State},
+    parser::Parser,
 };
 
 pub mod accounts;
@@ -26,7 +29,7 @@ pub struct IdleMMOClient {
     pub(crate) jar: Arc<Jar>,
     pub(crate) client: Client,
     pub(crate) base_url: Url,
-    pub(crate) cache: CachedData,
+    pub(crate) state: State,
     pub(crate) db_client: DbClient,
 
     user_agent: String,
@@ -51,7 +54,7 @@ impl IdleMMOClient {
             client: client_user_agent,
             db_client,
             base_url: Url::parse("https://web.idle-mmo.com")?,
-            cache: CachedData::default(),
+            state: State::default(),
             user_agent: generated_user_agent,
         })
     }
@@ -62,15 +65,15 @@ impl IdleMMOClient {
         let response_html = http_response.text().await?;
         let extracted_csrf_token = Parser::CsrfToken.get_value(&response_html)?;
 
-        self.cache.html = response_html;
-        self.cache.csrf_token = extracted_csrf_token;
+        self.state.html = response_html;
+        self.state.csrf_token = extracted_csrf_token;
         match self.get_character_information().await {
-            Ok(character_information) => self.cache.character_info = character_information,
+            Ok(character_information) => self.state.character_info = character_information,
             Err(e) => warn!(error = %e, "Failed to get character information during data update."),
         }
 
         info!(
-            token_prefix = %&self.cache.csrf_token[..8],
+            token_prefix = %&self.state.csrf_token[..8],
             "Current data updated."
         );
 

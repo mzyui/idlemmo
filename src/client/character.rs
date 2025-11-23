@@ -7,8 +7,8 @@ use crate::{
     client::IdleMMOClient,
     error::Result,
     models::{
-        action::SkillType,
-        profile::{Character, Profile},
+        character::{Character, Profile},
+        game_action::SkillType,
     },
     parser::Parser,
 };
@@ -26,7 +26,7 @@ impl CharacterApi for IdleMMOClient {
     #[tracing::instrument(skip(self))]
     async fn get_character_information(&mut self) -> Result<Profile> {
         let character_info_api_url =
-            Parser::CharacterInformationApiEndpoint.get_value(&self.cache.html)?;
+            Parser::CharacterInformationApiEndpoint.get_value(&self.state.html)?;
         debug!(url = %character_info_api_url, "Calling API: Get Character Information");
 
         let response = self
@@ -38,7 +38,7 @@ impl CharacterApi for IdleMMOClient {
         let mut profile = response.json::<Profile>().await?;
 
         let skill_data_regex = Parser::SkillData.to_regex();
-        for capture in skill_data_regex.captures_iter(&self.cache.html) {
+        for capture in skill_data_regex.captures_iter(&self.state.html) {
             let (_, [skill_level_str, skill_type_str]) = capture.extract();
             let parsed_skill_type = SkillType::from_str(skill_type_str)?;
             profile.update_skill(parsed_skill_type, skill_level_str)?;
@@ -55,7 +55,7 @@ impl CharacterApi for IdleMMOClient {
     #[tracing::instrument(skip(self))]
     async fn get_all_characters(&self) -> Result<Vec<Character>> {
         let all_characters_api_url =
-            Parser::CharactersAllApiEndpoint.get_value(&self.cache.html)?;
+            Parser::CharactersAllApiEndpoint.get_value(&self.state.html)?;
         debug!(url = %all_characters_api_url, "Calling API: Get All Characters");
 
         let http_api_response = self
@@ -92,7 +92,7 @@ impl CharacterApi for IdleMMOClient {
         self.client
             .post(character_to_switch.change_url)
             .form(&json!({
-                "_token": self.cache.csrf_token,
+                "_token": self.state.csrf_token,
                 "return_to_current_page": false
             }))
             .send()

@@ -7,12 +7,9 @@ use tracing::{debug, info, warn};
 use crate::{
     client::IdleMMOClient,
     error::Result,
-    models::{
-        ResponseData,
-        location::{Location, TravelMode},
-    },
+    models::world::{Location, TravelMode},
     parser::Parser,
-    utils::{API_VERSION, generate_obfuscated_data},
+    utils::{API_VERSION, obfuscation::generate_obfuscated_data},
 };
 
 #[allow(dead_code)]
@@ -26,11 +23,11 @@ pub trait LocationApi {
 impl LocationApi for IdleMMOClient {
     #[tracing::instrument(skip(self, load_from_cache))]
     async fn get_locations(&mut self, load_from_cache: bool) -> Result<Vec<Location>> {
-        if load_from_cache && !self.cache.locations.is_empty() {
-            return Ok(self.cache.locations.clone());
+        if load_from_cache && !self.state.locations.is_empty() {
+            return Ok(self.state.locations.clone());
         }
 
-        let all_locations_api_url = Parser::LocationsAllApiEndpoint.get_value(&self.cache.html)?;
+        let all_locations_api_url = Parser::LocationsAllApiEndpoint.get_value(&self.state.html)?;
         debug!(url = %all_locations_api_url, "Calling API: Get All Locations");
 
         let http_response = self.client.post(all_locations_api_url).send().await?;
@@ -52,7 +49,7 @@ impl LocationApi for IdleMMOClient {
             warn!("No locations found in the initial fetch.");
         } else {
             let quick_view_api_url =
-                Parser::QuickViewLocationApiEndpoint.get_value(&self.cache.html)?;
+                Parser::QuickViewLocationApiEndpoint.get_value(&self.state.html)?;
             for current_location_id in raw_location_ids {
                 let quick_view_response = self
                     .client
@@ -64,13 +61,13 @@ impl LocationApi for IdleMMOClient {
                 let mut current_location_details = quick_view_response.json::<Location>().await?;
 
                 current_location_details.enemies.retain(|current_enemy| {
-                    current_enemy.level >= self.cache.character_info.combat_level
+                    current_enemy.level >= self.state.character_info.combat_level
                 });
                 current_location_details
                     .skill_items
                     .retain(|current_skill| {
                         let character_skill_level = self
-                            .cache
+                            .state
                             .character_info
                             .skill_level
                             .entry(current_skill.skill.clone())
@@ -86,7 +83,7 @@ impl LocationApi for IdleMMOClient {
             filtered_locations.sort_by_key(|location_by_distance: &Location| {
                 Reverse(location_by_distance.distance)
             });
-            self.cache.locations.clone_from(&filtered_locations);
+            self.state.locations.clone_from(&filtered_locations);
         }
         info!(
             count = filtered_locations.len(),
@@ -100,7 +97,7 @@ impl LocationApi for IdleMMOClient {
         info!(location = %location.name, ?travel_mode, "Attempting to move to new location.");
         match travel_mode {
             TravelMode::Teleport => {
-                let character_gold_amount = self.cache.character_info.gold;
+                let character_gold_amount = self.state.character_info.gold;
                 if character_gold_amount < location.teleport_cost {
                     warn!(
                         current_gold = character_gold_amount,
@@ -116,14 +113,14 @@ impl LocationApi for IdleMMOClient {
                         self.base_url, location.key
                     ))
                     .form(&json!({
-                        "_token": self.cache.csrf_token,
+                        "_token": self.state.csrf_token,
                     }))
                     .send()
                     .await?;
 
                 self.update_current_data().await?;
 
-                if character_gold_amount != self.cache.character_info.gold {
+                if character_gold_amount != self.state.character_info.gold {
                     info!(location = %location.name, cost = location.teleport_cost, "Teleport successful");
                 } else {
                     warn!(location = %location.name, "You already at location");
@@ -131,7 +128,7 @@ impl LocationApi for IdleMMOClient {
             }
             TravelMode::Walk => {
                 let travel_api_url =
-                    Parser::LocationsTravelApiEndpoint.get_value(&self.cache.html)?;
+                    Parser::LocationsTravelApiEndpoint.get_value(&self.state.html)?;
                 let travel_http_response = self
                     .client
                     .post(travel_api_url)
@@ -143,8 +140,12 @@ impl LocationApi for IdleMMOClient {
                     }))
                     .send()
                     .await?;
-                let response_message_data = travel_http_response.json::<ResponseData>().await?;
-                info!("{}", response_message_data.message);
+                let response_message_data = travel_http_response.json::<Value>().await?;
+                let message = response_message_data
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Failed to travel with TravelMode::Walk");
+                info!("{}", message);
             }
         }
 

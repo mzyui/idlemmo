@@ -10,9 +10,9 @@ use tracing::{debug, info, warn};
 use crate::{
     client::{IdleMMOClient, LocationApi},
     error::Result,
-    models::user::Account,
+    models::auth::Account,
     parser::Parser,
-    utils::obfuscate_email,
+    utils::obfuscation::obfuscate_email,
 };
 
 #[allow(dead_code)]
@@ -29,7 +29,7 @@ impl IdleMMOClient {
         debug!("Sending login credentials...");
         let login_params = json!({
             "remember": "true",
-            "_token": self.cache.csrf_token,
+            "_token": self.state.csrf_token,
             "email": email,
             "password": password
         });
@@ -59,7 +59,7 @@ impl IdleMMOClient {
                 .client
                 .post(&two_factor_auth_url)
                 .form(&json!({
-                    "_token": self.cache.csrf_token,
+                    "_token": self.state.csrf_token,
                     "code": two_factor_code
                 }))
                 .send()
@@ -122,9 +122,9 @@ impl AccountManagement for IdleMMOClient {
         self.post_login(email, password).await?;
 
         debug!("Extracting API token and user metadata...");
-        let extracted_api_token = Parser::ApiToken.get_value(&self.cache.html)?;
+        let extracted_api_token = Parser::ApiToken.get_value(&self.state.html)?;
         self.update_client(&extracted_api_token)?;
-        let extracted_character_id = Parser::CharacterId.get_value(&self.cache.html)?;
+        let extracted_character_id = Parser::CharacterId.get_value(&self.state.html)?;
         debug!(token_prefix = %&extracted_api_token[..8], character_id = %extracted_character_id, "User data extracted");
 
         let session_cookies = self.jar.cookies(&self.base_url).unwrap();
