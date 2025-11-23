@@ -91,6 +91,11 @@ impl DbClient {
             );
         }
 
+        if accounts.is_empty() {
+            return Err(AppError::SupabaseRequest(
+                "No accounts found. Please add an account first.".into(),
+            ));
+        }
         Ok(accounts)
     }
 }
